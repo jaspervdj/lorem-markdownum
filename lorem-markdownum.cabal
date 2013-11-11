@@ -1,6 +1,6 @@
 Name:          lorem-markdownum
 Version:       0.1.0.0
-Synopsis:      A lorem lipsum generator for markdown
+Synopsis:      A lorem ipsum generator for markdown
 Homepage:      http://jaspervdj.be/lorem-markdownum
 License:       BSD3
 License-file:  LICENSE
