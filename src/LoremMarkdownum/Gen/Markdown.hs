@@ -26,6 +26,8 @@ module LoremMarkdownum.Gen.Markdown
     , printUnorderedList
     , printSentence
     , printPhrase
+
+    , previewMarkdown
     ) where
 
 
@@ -39,35 +41,39 @@ import           Data.List                     (intersperse)
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as M
 import           Data.Maybe                    (maybeToList)
+import           Data.Monoid                   (mconcat)
 import           Data.Monoid                   ((<>))
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Traversable              (traverse)
+import           Text.Blaze.Html5              (Html, (!))
+import qualified Text.Blaze.Html5              as H
+import qualified Text.Blaze.Html5.Attributes   as A
 
 
 --------------------------------------------------------------------------------
-import           LoremMarkdownum.FrequencyTree            (FrequencyTree)
-import           LoremMarkdownum.Markov                   (Markov)
-import qualified LoremMarkdownum.Markov                   as Markov
-import           LoremMarkdownum.Text.Util
+import           LoremMarkdownum.FrequencyTree (FrequencyTree)
 import           LoremMarkdownum.Gen
 import           LoremMarkdownum.Gen.Code
+import           LoremMarkdownum.Markov        (Markov)
+import qualified LoremMarkdownum.Markov        as Markov
 import           LoremMarkdownum.Print
+import           LoremMarkdownum.Text.Util
 import           LoremMarkdownum.Token
 
 
 --------------------------------------------------------------------------------
 data MarkdownConfig = MarkdownConfig
-    { mcLengthMarkov  :: Markov (Token Int)
-    , mcWordFrequency :: Map Int (FrequencyTree Text)
-    , mcCodeConfig    :: CodeConfig
-    , mcAllowHeaders  :: Bool
-    , mcAllowCode     :: Bool
-    , mcAllowQuotes   :: Bool
-    , mcAllowLists    :: Bool
-    , mcInlineLinks   :: Bool
-    , mcHashHeaders   :: Bool
-    , mcAsteriskEm    :: Bool
+    { mcLengthMarkov   :: Markov (Token Int)
+    , mcWordFrequency  :: Map Int (FrequencyTree Text)
+    , mcCodeConfig     :: CodeConfig
+    , mcAllowHeaders   :: Bool
+    , mcAllowCode      :: Bool
+    , mcAllowQuotes    :: Bool
+    , mcAllowLists     :: Bool
+    , mcInlineLinks    :: Bool
+    , mcHashHeaders    :: Bool
+    , mcAsteriskEm     :: Bool
     , mcAsteriskStrong :: Bool
     } deriving (Show)
 
@@ -467,3 +473,64 @@ printPhrase = printSentence
 --------------------------------------------------------------------------------
 printPlainPhrase :: PlainPhrase -> Print ()
 printPlainPhrase = printStream printText
+
+
+--------------------------------------------------------------------------------
+previewMarkdown :: Markdown -> Html
+previewMarkdown = mconcat . map previewBlock
+
+
+--------------------------------------------------------------------------------
+previewBlock :: Block -> Html
+previewBlock (HeaderB h)        = previewHeader h
+previewBlock (ParagraphB p)     = previewParagraph p
+previewBlock (OrderedListB l)   = previewOrderedList l
+previewBlock (UnorderedListB l) = previewUnorderedList l
+previewBlock (CodeB c)          = H.pre $ H.toHtml $ runPrint $ printCode c
+previewBlock (QuoteB q)         = H.blockquote $ previewParagraph q
+
+
+--------------------------------------------------------------------------------
+previewHeader :: Header -> Html
+previewHeader (Header 1 pf) = H.h1 $ previewPlainPhrase pf
+previewHeader (Header 2 pf) = H.h2 $ previewPlainPhrase pf
+previewHeader (Header 3 pf) = H.h3 $ previewPlainPhrase pf
+previewHeader (Header _ pf) = H.h4 $ previewPlainPhrase pf
+
+
+--------------------------------------------------------------------------------
+previewParagraph :: Paragraph -> Html
+previewParagraph = H.p . mconcat . intersperse " " . map previewSentence
+
+
+--------------------------------------------------------------------------------
+previewOrderedList :: [Phrase] -> Html
+previewOrderedList = H.ol . mconcat . map (H.li . previewPhrase)
+
+
+--------------------------------------------------------------------------------
+previewUnorderedList :: [Phrase] -> Html
+previewUnorderedList = H.ul . mconcat . map (H.li . previewPhrase)
+
+
+--------------------------------------------------------------------------------
+previewSentence :: Sentence -> Html
+previewSentence = previewStream previewMarkup
+
+
+--------------------------------------------------------------------------------
+previewPlainPhrase :: PlainPhrase -> Html
+previewPlainPhrase = previewStream H.toHtml
+
+
+--------------------------------------------------------------------------------
+previewPhrase :: Phrase -> Html
+previewPhrase = previewSentence
+
+
+--------------------------------------------------------------------------------
+previewMarkup :: Markup -> Html
+previewMarkup (PlainM t)  = H.toHtml t
+previewMarkup (ItalicM s) = H.em $ previewSentence s
+previewMarkup (BoldM s)   = H.strong $ previewSentence s
+previewMarkup (LinkM s h) = H.a ! A.href (H.toValue h) $ previewSentence s

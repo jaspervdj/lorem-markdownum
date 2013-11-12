@@ -5,6 +5,7 @@ module LoremMarkdownum.Token
     , streamElements
     , mapStream
     , printStream
+    , previewStream
 
     , Token (..)
     , tokenIsElement
@@ -15,9 +16,11 @@ module LoremMarkdownum.Token
 
 
 --------------------------------------------------------------------------------
-import           Control.Applicative        (pure, (<$>))
-import           Data.Foldable              (Foldable (..))
-import           Data.Traversable           (Traversable (..))
+import           Control.Applicative   (pure, (<$>))
+import           Data.Foldable         (Foldable (..))
+import           Data.Monoid           (mappend, mempty)
+import           Data.Traversable      (Traversable (..))
+import           Text.Blaze.Html       (Html)
 
 
 --------------------------------------------------------------------------------
@@ -56,6 +59,26 @@ printStream printElement = go
     printToken FullStop    = printText "."
     printToken Question    = printText "?"
     printToken Exclamation = printText "!"
+
+
+--------------------------------------------------------------------------------
+previewStream :: (a -> Html) -> Stream a -> Html
+previewStream previewElement = go
+  where
+    go []                       = mempty
+    go [t]                      = printToken t
+    go (t : xs@(Element _ : _)) =
+        printToken t `mappend` " " `mappend` go xs
+    go (t : xs@(_ : _))         =
+        printToken t `mappend` go xs
+
+    printToken (Element x) = previewElement x
+    printToken Comma       = ","
+    printToken Colon       = ":"
+    printToken Semicolon   = ";"
+    printToken FullStop    = "."
+    printToken Question    = "?"
+    printToken Exclamation = "!"
 
 
 --------------------------------------------------------------------------------
