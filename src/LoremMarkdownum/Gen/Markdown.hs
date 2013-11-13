@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module LoremMarkdownum.Gen.Markdown
     ( MarkdownConfig (..)
+    , mkDefaultMarkdownConfig
     , MarkdownState (..)
     , MarkdownGen
     , runMarkdownGen
@@ -33,8 +34,7 @@ module LoremMarkdownum.Gen.Markdown
 
 --------------------------------------------------------------------------------
 import           Control.Applicative           ((<$>))
-import           Control.Monad                 (forM, forM_, replicateM)
-import           Control.Monad                 (unless)
+import           Control.Monad                 (forM, forM_, replicateM, when)
 import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
 import           Control.Monad.State           (StateT, evalStateT, get, modify)
 import           Data.List                     (intersperse)
@@ -64,18 +64,27 @@ import           LoremMarkdownum.Token
 
 --------------------------------------------------------------------------------
 data MarkdownConfig = MarkdownConfig
-    { mcLengthMarkov   :: Markov (Token Int)
-    , mcWordFrequency  :: Map Int (FrequencyTree Text)
-    , mcCodeConfig     :: CodeConfig
-    , mcAllowHeaders   :: Bool
-    , mcAllowCode      :: Bool
-    , mcAllowQuotes    :: Bool
-    , mcAllowLists     :: Bool
-    , mcInlineLinks    :: Bool
-    , mcHashHeaders    :: Bool
-    , mcAsteriskEm     :: Bool
-    , mcAsteriskStrong :: Bool
+    { mcLengthMarkov     :: Markov (Token Int)
+    , mcWordFrequency    :: Map Int (FrequencyTree Text)
+    , mcCodeConfig       :: CodeConfig
+    , mcNoHeaders        :: Bool
+    , mcNoCode           :: Bool
+    , mcNoQuotes         :: Bool
+    , mcNoLists          :: Bool
+    , mcReferenceLinks   :: Bool
+    , mcUnderlineHeaders :: Bool
+    , mcUnderscoreEm     :: Bool
+    , mcUnderscoreStrong :: Bool
     } deriving (Show)
+
+
+--------------------------------------------------------------------------------
+mkDefaultMarkdownConfig :: Markov (Token Int)
+                        -> Map Int (FrequencyTree Text)
+                        -> CodeConfig
+                        -> MarkdownConfig
+mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
+    False False False False False False False False
 
 
 --------------------------------------------------------------------------------
@@ -154,7 +163,7 @@ markdownLinks = M.toList . M.fromList . concatMap blockLinks
 --------------------------------------------------------------------------------
 genMarkdown :: MonadGen m => MarkdownGen m Markdown
 genMarkdown = do
-    allowHeaders  <- mcAllowHeaders <$> ask
+    noHeaders     <- mcNoHeaders <$> ask
     numParagraphs <- randomInt (7, 9)
     numSections   <- randomInt (2, 4)
     partitioning  <- partitionNicely numSections numParagraphs
@@ -165,7 +174,7 @@ genMarkdown = do
 
     h1      <- HeaderB    <$> genHeader 1
     lastPar <- ParagraphB <$> genParagraph
-    return $ (if allowHeaders then id else removeHeaders) $
+    return $ (if noHeaders then removeHeaders else id) $
         [h1] ++ concat blocks ++ [lastPar]
   where
     removeHeaders = filter (\b -> case b of HeaderB _ -> False; _ -> True)
@@ -186,14 +195,14 @@ genSection numBlocks
 -- TODO (jaspervdj: Not sure about the name
 genSpecialBlock :: MonadGen m => MarkdownGen m Block
 genSpecialBlock = do
-    allowCode   <- mcAllowCode   <$> ask
-    allowQuotes <- mcAllowQuotes <$> ask
-    allowLists  <- mcAllowLists  <$> ask
+    noCode   <- mcNoCode   <$> ask
+    noQuotes <- mcNoQuotes <$> ask
+    noLists  <- mcNoLists  <$> ask
     let freqs =
-            [ (if allowLists  then 1 else 0, OrderedListB   <$> genOrderedList)
-            , (if allowLists  then 1 else 0, UnorderedListB <$> genUnorderedList)
-            , (if allowCode   then 2 else 0, CodeB          <$> genCodeBlock)
-            , (if allowQuotes then 1 else 0, QuoteB         <$> genParagraph)
+            [ (if noLists  then 0 else 1, OrderedListB   <$> genOrderedList)
+            , (if noLists  then 0 else 1, UnorderedListB <$> genUnorderedList)
+            , (if noCode   then 0 else 2, CodeB          <$> genCodeBlock)
+            , (if noQuotes then 0 else 1, QuoteB         <$> genParagraph)
             ]
     if sum (map fst freqs) <= 0
         then ParagraphB <$> genParagraph
@@ -391,7 +400,7 @@ printMarkdown :: MarkdownConfig -> Markdown -> Print ()
 printMarkdown mc blocks = do
     sequence_ $ intersperse printNl $ map (printBlock mc) blocks
     let links = markdownLinks blocks
-    unless (mcInlineLinks mc || null links) $ do
+    when (mcReferenceLinks mc || not (null links)) $ do
         printNl
         mapM_ (uncurry printLink) links
   where
@@ -414,13 +423,13 @@ printBlock mc (QuoteB p)         = printWrapIndent "> " $
 --------------------------------------------------------------------------------
 printHeader :: MarkdownConfig -> Header -> Print ()
 printHeader mc (Header i p)
-    | mcHashHeaders mc && i <= 2 =
-        printText (T.replicate i "#" <> " ") >> printPlainPhrase p >> printNl
-    | otherwise                  = do
+    | mcUnderlineHeaders mc && i <= 2 = do
         let len  = runPrintLength (printPlainPhrase p)
             char = if i <= 1 then "=" else "-"
         printPlainPhrase p >> printNl
         printText (T.replicate len char) >> printNl
+    | otherwise                       =
+        printText (T.replicate i "#" <> " ") >> printPlainPhrase p >> printNl
 
 
 --------------------------------------------------------------------------------
@@ -448,21 +457,21 @@ printSentence mc = printStream printMarkup
   where
     printMarkup (PlainM t) = printText t
     printMarkup (ItalicM m)
-        | mcAsteriskEm mc =
-            printText "*" >> printStream printMarkup m >> printText "*"
-        | otherwise       =
+        | mcUnderscoreEm mc =
             printText "_" >> printStream printMarkup m >> printText "_"
+        | otherwise         =
+            printText "*" >> printStream printMarkup m >> printText "*"
     printMarkup (BoldM  m)
-        | mcAsteriskStrong mc =
-            printText "**" >> printStream printMarkup m >> printText "**"
-        | otherwise           =
+        | mcUnderscoreStrong mc =
             printText "__" >> printStream printMarkup m >> printText "__"
+        | otherwise             =
+            printText "**" >> printStream printMarkup m >> printText "**"
     printMarkup (LinkM m l)
-        | mcInlineLinks mc =
+        | mcReferenceLinks mc =
+            printText "[" >> printStream printMarkup m >> printText "]"
+        | otherwise        =
             printText "[" >> printStream printMarkup m >> printText "](" >>
             printText l >> printText ")"
-        | otherwise        =
-            printText "[" >> printStream printMarkup m >> printText "]"
 
 
 --------------------------------------------------------------------------------
