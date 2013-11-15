@@ -51,6 +51,7 @@ These are the supported parameters:
 - `no-code`
 - `no-quotes`
 - `no-lists`
+- `no-inline-markup`
 - `reference-links`
 - `underline-headers`
 - `underscore-em`

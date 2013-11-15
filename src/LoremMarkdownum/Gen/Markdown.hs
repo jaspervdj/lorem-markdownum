@@ -71,6 +71,7 @@ data MarkdownConfig = MarkdownConfig
     , mcNoCode           :: Bool
     , mcNoQuotes         :: Bool
     , mcNoLists          :: Bool
+    , mcNoInlineMarkup   :: Bool
     , mcReferenceLinks   :: Bool
     , mcUnderlineHeaders :: Bool
     , mcUnderscoreEm     :: Bool
@@ -84,7 +85,7 @@ mkDefaultMarkdownConfig :: Markov (Token Int)
                         -> CodeConfig
                         -> MarkdownConfig
 mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
-    False False False False False False False False
+    False False False False False False False False False
 
 
 --------------------------------------------------------------------------------
@@ -281,7 +282,12 @@ genRegularSentence = randomInt (10, 20) >>= genSentence
 
 --------------------------------------------------------------------------------
 genSentence :: MonadGen m => Int -> MarkdownGen m Sentence
-genSentence n = genPlainSentence n >>= genMarkup
+genSentence n = do
+    noInlineMarkup <- mcNoInlineMarkup <$> ask
+    sentence       <- genPlainSentence n
+    if noInlineMarkup
+        then return (map (fmap PlainM) sentence)
+        else genMarkup sentence
 
 
 --------------------------------------------------------------------------------
