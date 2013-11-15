@@ -56,3 +56,4 @@ These are the supported parameters:
 - `underline-headers`
 - `underscore-em`
 - `underscore-strong`
+- `num-blocks`

@@ -76,6 +76,7 @@ data MarkdownConfig = MarkdownConfig
     , mcUnderlineHeaders :: Bool
     , mcUnderscoreEm     :: Bool
     , mcUnderscoreStrong :: Bool
+    , mcNumBlocks        :: Maybe Int
     } deriving (Show)
 
 
@@ -85,7 +86,7 @@ mkDefaultMarkdownConfig :: Markov (Token Int)
                         -> CodeConfig
                         -> MarkdownConfig
 mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
-    False False False False False False False False False
+    False False False False False False False False False Nothing
 
 
 --------------------------------------------------------------------------------
@@ -165,11 +166,11 @@ markdownLinks = M.toList . M.fromList . concatMap blockLinks
 genMarkdown :: MonadGen m => MarkdownGen m Markdown
 genMarkdown = do
     noHeaders     <- mcNoHeaders <$> ask
-    numParagraphs <- randomInt (7, 9)
-    numSections   <- randomInt (2, 4)
-    partitioning  <- partitionNicely numSections numParagraphs
-    blocks        <- forM partitioning $ \numParsInSection -> do
-        section <- genSection numParsInSection
+    numBlocks     <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
+    numSections   <- randomInt (2, max 3 (numBlocks `div` 2 + 1))
+    partitioning  <- partitionNicely numSections (numBlocks - 1)
+    blocks        <- forM partitioning $ \numBlocksInSection -> do
+        section <- genSection numBlocksInSection
         h2      <- HeaderB <$> genHeader 2
         return $ h2 : section
 
