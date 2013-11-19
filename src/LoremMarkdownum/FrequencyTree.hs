@@ -17,7 +17,6 @@ module LoremMarkdownum.FrequencyTree
 import           Data.List       (foldl', sortBy)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
-import           Data.Ord        (Down (..), comparing)
 import           Prelude         hiding (sum)
 import           System.Random   (randomRIO)
 
@@ -114,7 +113,7 @@ frequencyTreeToMap (FrequencyTreeNode _ l r) =
 -- characteristics in most cases.
 frequencyMapToTree :: forall a. Ord a => FrequencyMap a -> FrequencyTree a
 frequencyMapToTree =
-    listToTree . sortBy (comparing (Down . snd)) .
+    listToTree . sortBy (\(_, x) (_, y) -> compare y x) .
     filter ((> 0) . snd) . M.toList
   where
     listToTree :: [(a, Int)] -> FrequencyTree a
