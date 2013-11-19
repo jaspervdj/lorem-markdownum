@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module LoremMarkdownum.FrequencyTree
     ( FrequencyTree
     , singleton
@@ -14,9 +14,10 @@ module LoremMarkdownum.FrequencyTree
 
 
 --------------------------------------------------------------------------------
-import           Data.List       (foldl')
+import           Data.List       (foldl', sortBy)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
+import           Data.Ord        (Down (..), comparing)
 import           Prelude         hiding (sum)
 import           System.Random   (randomRIO)
 
@@ -109,29 +110,29 @@ frequencyTreeToMap (FrequencyTreeNode _ l r) =
 
 
 --------------------------------------------------------------------------------
--- | This is the only function building an optimized 'FrequencyTree'.
-frequencyMapToTree :: Ord a => FrequencyMap a -> FrequencyTree a
-frequencyMapToTree hm = case M.toList hm' of
-    -- Here, we take advantage of the fact that 'M.toList' produces a list
-    -- lazily. Otherwise this would be kind of slow.
-    []          -> error "frequencyMapToTree: Empty FrequencyMap"
-    [(i, f)]    -> FrequencyTreeLeaf f i
-    (_ : _ : _) -> FrequencyTreeNode fsum
-        (frequencyMapToTree lhm) (frequencyMapToTree rhm)
+-- | This function builds a 'FrequencyTree' that has good performance
+-- characteristics in most cases.
+frequencyMapToTree :: forall a. Ord a => FrequencyMap a -> FrequencyTree a
+frequencyMapToTree =
+    listToTree . sortBy (comparing (Down . snd)) .
+    filter ((> 0) . snd) . M.toList
   where
-    -- Two big slow folds here!
-    hm'           = M.filter (>= 0) hm
-    fsum          = M.foldl' (+) 0 hm'
-    half          = fsum `div` 2
-    (lhm, rhm, _) = M.foldlWithKey' partition (M.empty, M.empty, 0) hm'
+    listToTree :: [(a, Int)] -> FrequencyTree a
+    listToTree []       = error "frequencyMapToTree: Empty FrequencyMap"
+    listToTree [(x, f)] = FrequencyTreeLeaf f x
+    listToTree xs       =
+        let (l, lSum, r, rSum) = partition xs
+        in FrequencyTreeNode (lSum + rSum)
+            (listToTree l) (listToTree r)
 
-    partition (l, r, n) i f
-        -- The first guard ensures we *always* add the last item to the right
-        -- tree. Otherwise we might end up with an empty right tree in some
-        -- cases.
-        | n + f >= fsum = (l, M.insertWith (+) i f r, n + f)
-        | n < half      = (M.insertWith (+) i f l, r, n + f)
-        | otherwise     = (l, M.insertWith (+) i f r, n + f)
+    partition :: [(a, Int)] -> ([(a, Int)], Int, [(a, Int)], Int)
+    partition = go [] 0 [] 0
+      where
+        go l lSum r rSum ls = case ls of
+            []                 -> (reverse l, lSum, reverse r, rSum)
+            ((x, f) : xs)
+                | lSum <= rSum -> go ((x, f) : l) (f + lSum) r rSum xs
+                | otherwise    -> go l lSum ((x, f) : r) (f + rSum) xs
 
 
 --------------------------------------------------------------------------------
