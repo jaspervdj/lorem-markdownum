@@ -14,9 +14,10 @@ module LoremMarkdownum.FrequencyTree
 
 
 --------------------------------------------------------------------------------
-import           Data.List       (foldl', sortBy)
+import           Data.List       (foldl', insertBy, sortBy)
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
+import           Data.Ord        (comparing)
 import           Prelude         hiding (sum)
 import           System.Random   (randomRIO)
 
@@ -113,25 +114,15 @@ frequencyTreeToMap (FrequencyTreeNode _ l r) =
 -- characteristics in most cases.
 frequencyMapToTree :: forall a. Ord a => FrequencyMap a -> FrequencyTree a
 frequencyMapToTree =
-    listToTree . sortBy (\(_, x) (_, y) -> compare y x) .
-    filter ((> 0) . snd) . M.toList
+    huffman . sortBy (comparing sum) .
+    map (\(x, f) -> FrequencyTreeLeaf f x) . filter ((> 0) . snd) . M.toList
   where
-    listToTree :: [(a, Int)] -> FrequencyTree a
-    listToTree []       = error "frequencyMapToTree: Empty FrequencyMap"
-    listToTree [(x, f)] = FrequencyTreeLeaf f x
-    listToTree xs       =
-        let (l, lSum, r, rSum) = partition xs
-        in FrequencyTreeNode (lSum + rSum)
-            (listToTree l) (listToTree r)
-
-    partition :: [(a, Int)] -> ([(a, Int)], Int, [(a, Int)], Int)
-    partition = go [] 0 [] 0
-      where
-        go l lSum r rSum ls = case ls of
-            []                 -> (reverse l, lSum, reverse r, rSum)
-            ((x, f) : xs)
-                | lSum <= rSum -> go ((x, f) : l) (f + lSum) r rSum xs
-                | otherwise    -> go l lSum ((x, f) : r) (f + rSum) xs
+    huffman :: [FrequencyTree a] -> FrequencyTree a
+    huffman []             = error "frequencyMapToTree: Empty FrequencyMap"
+    huffman [ft]           = ft
+    huffman (t1 : t2 : ts) = huffman $
+        let parent = FrequencyTreeNode (sum t1 + sum t2) t1 t2
+        in insertBy (comparing sum) parent ts
 
 
 --------------------------------------------------------------------------------
