@@ -407,7 +407,7 @@ printMarkdown :: MarkdownConfig -> Markdown -> Print ()
 printMarkdown mc blocks = do
     sequence_ $ intersperse printNl $ map (printBlock mc) blocks
     let links = markdownLinks blocks
-    when (mcReferenceLinks mc || not (null links)) $ do
+    when (mcReferenceLinks mc && not (null links)) $ do
         printNl
         mapM_ (uncurry printLink) links
   where
