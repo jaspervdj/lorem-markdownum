@@ -9,13 +9,6 @@
 [lorem ipsum]: http://www.lipsum.com/
 [markdown]: http://daringfireball.net/projects/markdown/
 
-## Code
-
-This repository currently only contains the Haskell *library* (responsible for
-actually generating the markdown). Due to the fact that the *server* (which
-wraps this library) uses some proprietary components, I cannot open-source it
-yet.
-
 ## HTTP API
 
 An HTTP API is available. You can use it by sending a `GET` request to
