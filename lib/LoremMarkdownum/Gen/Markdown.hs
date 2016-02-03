@@ -41,8 +41,7 @@ import           Data.List                     (intersperse)
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as M
 import           Data.Maybe                    (maybeToList)
-import           Data.Monoid                   (mconcat)
-import           Data.Monoid                   ((<>))
+import           Data.Monoid                   (mconcat, (<>))
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Data.Traversable              (traverse)
@@ -77,6 +76,7 @@ data MarkdownConfig = MarkdownConfig
     , mcUnderscoreEm     :: Bool
     , mcUnderscoreStrong :: Bool
     , mcNumBlocks        :: Maybe Int
+    , mcHeaderDepth      :: Int
     } deriving (Show)
 
 
@@ -86,7 +86,7 @@ mkDefaultMarkdownConfig :: Markov (Token Int)
                         -> CodeConfig
                         -> MarkdownConfig
 mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
-    False False False False False False False False False Nothing
+    False False False False False False False False False Nothing 2
 
 
 --------------------------------------------------------------------------------
@@ -102,7 +102,7 @@ type MarkdownGen m a = ReaderT MarkdownConfig (StateT MarkdownState m) a
 --------------------------------------------------------------------------------
 runMarkdownGen :: MonadGen m
                => MarkdownGen m a -> MarkdownConfig -> MarkdownState -> m a
-runMarkdownGen mg mc ms = evalStateT (runReaderT mg mc) ms
+runMarkdownGen mg mc = evalStateT (runReaderT mg mc)
 
 
 --------------------------------------------------------------------------------
@@ -166,11 +166,12 @@ markdownLinks = M.toList . M.fromList . concatMap blockLinks
 genMarkdown :: MonadGen m => MarkdownGen m Markdown
 genMarkdown = do
     noHeaders     <- mcNoHeaders <$> ask
+    maxHDepth     <- mcHeaderDepth <$> ask
     numBlocks     <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
     numSections   <- randomInt (2, max 3 (numBlocks `div` 2 + 1))
     partitioning  <- partitionNicely numSections (numBlocks - 1)
     blocks        <- forM partitioning $ \numBlocksInSection -> do
-        section <- genSection numBlocksInSection
+        section <- genSection numBlocksInSection 3 maxHDepth
         h2      <- HeaderB <$> genHeader 2
         return $ h2 : section
 
@@ -183,14 +184,20 @@ genMarkdown = do
 
 
 --------------------------------------------------------------------------------
-genSection :: MonadGen m => Int -> MarkdownGen m [Block]
-genSection numBlocks
+genSection :: MonadGen m => Int -> Int -> Int -> MarkdownGen m [Block]
+genSection numBlocks headerDepth maxHDepth
     | numBlocks <= 0 = return []
     | otherwise      = do
         par0    <- ParagraphB <$> genParagraph
+        subHead <- (&& numBlocks > 2) . (&& headerDepth <= maxHDepth) <$> randomBool maxHDepth headerDepth 
         special <- (&& numBlocks > 1) <$> randomBool 3 1
-        pars    <- if special then return <$> genSpecialBlock else return []
-        ((par0 : pars) ++) <$> genSection (numBlocks - 1 - length pars)
+        pars    <- case (subHead, special) of
+                        (True, _) -> ((:) . HeaderB <$> genHeader headerDepth) <*>
+                                     (return . ParagraphB <$> genParagraph)
+                        (_, True) -> return <$> genSpecialBlock
+                        _         -> return []
+        let hDepth = if subHead then headerDepth + 1 else headerDepth
+        ((par0 : pars) ++) <$> genSection (numBlocks - 1 - length pars) hDepth maxHDepth
 
 
 --------------------------------------------------------------------------------
@@ -511,7 +518,9 @@ previewHeader :: Header -> Html
 previewHeader (Header 1 pf) = H.h1 $ previewPlainPhrase pf
 previewHeader (Header 2 pf) = H.h2 $ previewPlainPhrase pf
 previewHeader (Header 3 pf) = H.h3 $ previewPlainPhrase pf
-previewHeader (Header _ pf) = H.h4 $ previewPlainPhrase pf
+previewHeader (Header 4 pf) = H.h4 $ previewPlainPhrase pf
+previewHeader (Header 5 pf) = H.h5 $ previewPlainPhrase pf
+previewHeader (Header _ pf) = H.h6 $ previewPlainPhrase pf
 
 
 --------------------------------------------------------------------------------
