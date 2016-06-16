@@ -370,43 +370,29 @@ genMarkupConstructor m = oneOf
 
 
 --------------------------------------------------------------------------------
-genLink :: MonadGen m => m Text
-genLink = sampleFromList
-    [ "http://eelslap.com/"
-    , "http://en.wikipedia.org/wiki/Sterling_Archer"
-    , "http://example.com/"
-    , "http://gifctrl.com/"
-    , "http://haskell.org/"
-    , "http://heeeeeeeey.com/"
-    , "http://hipstermerkel.tumblr.com/"
-    , "http://html9responsiveboilerstrapjs.com/"
-    , "http://imgur.com/"
-    , "http://jaspervdj.be/"
-    , "http://kimjongunlookingatthings.tumblr.com/"
-    , "http://landyachtz.com/"
-    , "http://news.ycombinator.com/"
-    , "http://omfgdogs.com/"
-    , "http://omgcatsinspace.tumblr.com/"
-    , "http://reddit.com/r/thathappened"
-    , "http://seenly.com/"
-    , "http://stoneship.org/"
-    , "http://textfromdog.tumblr.com/"
-    , "http://tumblr.com/"
-    , "http://twitter.com/search?q=haskell"
-    , "http://www.billmays.net/"
-    , "http://www.lipsum.com/"
-    , "http://www.metafilter.com/"
-    , "http://www.mozilla.org/"
-    , "http://www.raynelongboards.com/"
-    , "http://www.reddit.com/r/haskell"
-    , "http://www.thesecretofinvisibility.com/"
-    , "http://www.uselessaccount.com/"
-    , "http://www.wedrinkwater.com/"
-    , "http://www.wtfpl.net/"
-    , "http://www.youtube.com/watch?v=MghiBW3r65M"
-    , "http://zeus.ugent.be/"
-    , "http://zombo.com/"
-    ]
+genLink :: MonadGen m => MarkdownGen m Text
+genLink = do
+    n0          <- randomInt (1, 2)
+    domainParts <- replicateM n0 genLinkPart
+    n1          <- randomInt (0, 2)
+    pathParts   <- replicateM n1 genLinkPart
+    domainPart  <- sampleFromList
+        [T.concat domainParts, T.intercalate "-" domainParts]
+    pathPart    <- sampleFromList
+        [T.concat pathParts, T.intercalate "-" pathParts]
+    www         <- sampleFromFrequencies [("", 3), ("www.", 1)]
+    tld         <- sampleFromList [".org", ".net", ".com", ".io"]
+    ext         <- sampleFromFrequencies
+        [("", 5), (".php", 1), (".html", 2), (".aspx", 1)]
+
+    return $ T.concat ["http://", www, domainPart, tld, "/", pathPart, ext]
+  where
+    genLinkPart :: MonadGen m => MarkdownGen m Text
+    genLinkPart = do
+        token <- genToken
+        case token of
+            Element x -> return (T.toLower x)
+            _         -> genLinkPart
 
 
 --------------------------------------------------------------------------------
