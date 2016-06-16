@@ -380,8 +380,10 @@ genLink = do
         [T.concat pathParts, T.intercalate "-" pathParts]
     www         <- sampleFromFrequencies [("", 3), ("www.", 1)]
     tld         <- sampleFromList [".org", ".net", ".com", ".io"]
-    ext         <- sampleFromFrequencies
-        [("", 5), (".php", 1), (".html", 2), (".aspx", 1)]
+    ext         <- if T.null pathPart
+        then return ""
+        else sampleFromFrequencies
+                [("", 5), (".php", 1), (".html", 2), (".aspx", 1)]
 
     return $ T.concat ["http://", www, domainPart, tld, "/", pathPart, ext]
   where
