@@ -33,7 +33,6 @@ module LoremMarkdownum.Gen.Markdown
 
 
 --------------------------------------------------------------------------------
-import           Control.Applicative           ((<$>))
 import           Control.Monad                 (forM, forM_, replicateM, when)
 import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
 import           Control.Monad.State           (StateT, evalStateT, get, modify)
@@ -41,10 +40,9 @@ import           Data.List                     (intersperse)
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as M
 import           Data.Maybe                    (maybeToList)
-import           Data.Monoid                   (mconcat, (<>))
+import           Data.Monoid                   ((<>))
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
-import           Data.Traversable              (traverse)
 import           Text.Blaze.Html5              (Html, (!))
 import qualified Text.Blaze.Html5              as H
 import qualified Text.Blaze.Html5.Attributes   as A

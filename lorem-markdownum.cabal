@@ -43,6 +43,9 @@ Executable lorem-markdownum-web
   Main-is:        LoremMarkdownum/Web.hs
   Ghc-options:    -Wall -O2 -threaded
 
+  Other-modules:
+    LoremMarkdownum.Web.Views
+
   Build-depends:
     lorem-markdownum,
     base             >= 4    && < 5,

@@ -19,19 +19,17 @@ module LoremMarkdownum.Gen.Code
 
 
 --------------------------------------------------------------------------------
-import           Control.Applicative        (Applicative, (<$>), (<*>))
-import           Control.Monad              (replicateM)
-import           Control.Monad.Reader       (MonadReader, ReaderT, ask,
-                                             runReaderT)
-import           Data.List                  (intersperse)
-import           Data.Text                  (Text)
+import           Control.Monad                 (replicateM)
+import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
+import           Data.List                     (intersperse)
+import           Data.Text                     (Text)
 
 
 --------------------------------------------------------------------------------
-import           LoremMarkdownum.FrequencyTree         (FrequencyTree)
-import           LoremMarkdownum.Text.Util
+import           LoremMarkdownum.FrequencyTree (FrequencyTree)
 import           LoremMarkdownum.Gen
 import           LoremMarkdownum.Print
+import           LoremMarkdownum.Text.Util
 
 
 --------------------------------------------------------------------------------

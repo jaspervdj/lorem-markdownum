@@ -21,12 +21,11 @@ module LoremMarkdownum.Print
 
 
 --------------------------------------------------------------------------------
-import           Control.Applicative    (Applicative, (<$>))
 import           Control.Monad.Reader   (ask, local)
 import           Control.Monad.RWS      (RWS, runRWS)
 import           Control.Monad.State    (get, modify)
 import           Control.Monad.Writer   (tell)
-import           Data.Monoid            (mempty, (<>))
+import           Data.Monoid            ((<>))
 import           Data.Text              (Text)
 import qualified Data.Text              as T
 import qualified Data.Text.Lazy         as TL

@@ -16,10 +16,6 @@ module LoremMarkdownum.Token
 
 
 --------------------------------------------------------------------------------
-import           Control.Applicative   (pure, (<$>))
-import           Data.Foldable         (Foldable (..))
-import           Data.Monoid           (mappend, mempty)
-import           Data.Traversable      (Traversable (..))
 import           Text.Blaze.Html       (Html)
 
 

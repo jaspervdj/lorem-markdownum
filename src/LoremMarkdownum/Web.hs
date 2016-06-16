@@ -3,7 +3,6 @@
 
 
 --------------------------------------------------------------------------------
-import           Control.Applicative           ((<$>))
 import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
 import           Control.Monad.Trans           (liftIO)
 import           Data.ByteString               (ByteString)

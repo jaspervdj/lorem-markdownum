@@ -24,7 +24,6 @@ module LoremMarkdownum.Gen
 
 
 --------------------------------------------------------------------------------
-import           Control.Applicative  (Applicative, (<$>))
 import           Control.Monad        (join)
 import           Control.Monad.Reader (ReaderT, ask, local, mapReaderT,
                                        runReaderT)
