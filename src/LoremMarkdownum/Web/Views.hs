@@ -26,12 +26,17 @@ index mc markdown = H.docTypeHtml $ do
     H.head $ do
         H.title "Lorem Markdownum"
         H.style $ do
+            "html {"
+            "    text-align: center;"
+            "}"
+
             "body {"
             "    background-color: #fff;"
             "    color: #222;"
             "    font-family: sans-serif;"
             "    font-size: 16px;"
-            "    margin: 36px;"
+            "    margin: 36px auto 36px auto;"
+            "    text-align: left;"
             "    width: 640px;"
             "}"
 
