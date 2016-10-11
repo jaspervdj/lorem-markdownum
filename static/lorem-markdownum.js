@@ -43,7 +43,8 @@ $(document).ready(function() {
                 '#underline-headers',
                 '#underscore-em',
                 '#underscore-strong',
-                '#num-blocks'];
+                '#num-blocks',
+                '#no-wrapping'];
 
         // Form processing
         var query = {};

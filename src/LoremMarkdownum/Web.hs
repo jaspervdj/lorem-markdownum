@@ -88,8 +88,9 @@ app = Snap.route
 index :: AppM ()
 index = do
     (mc, markdownState) <- ask
-    m <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
-    Snap.blaze $ Views.index mc m
+    pc <- getPrintConfig
+    m  <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
+    Snap.blaze $ Views.index pc mc m
 
 
 --------------------------------------------------------------------------------
@@ -97,9 +98,10 @@ markdown :: AppM ()
 markdown = do
     (_, markdownState) <- ask
     mc                 <- getMarkdownConfig
+    pc                 <- getPrintConfig
     m <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
     Snap.modifyResponse $ Snap.setContentType "text/plain"
-    Snap.writeLazyText $ runPrint $ printMarkdown mc m
+    Snap.writeLazyText $ runPrintWith pc $ printMarkdown mc m
 
 
 --------------------------------------------------------------------------------
@@ -107,8 +109,9 @@ markdownHtml :: AppM ()
 markdownHtml = do
     (_, markdownState) <- ask
     mc                 <- getMarkdownConfig
+    pc                 <- getPrintConfig
     m <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
-    Snap.blaze $ Views.markdownHtml mc m
+    Snap.blaze $ Views.markdownHtml pc mc m
 
 
 --------------------------------------------------------------------------------
@@ -159,3 +162,12 @@ getMarkdownConfig = do
         , mcUnderscoreStrong = underscoreStrong
         , mcNumBlocks        = fmap (max 1 . min 15) numBlocks
         }
+
+
+--------------------------------------------------------------------------------
+getPrintConfig :: AppM PrintConfig
+getPrintConfig = do
+    noWrapping <- getBoolParam "no-wrapping"
+    case noWrapping of
+        False -> return defaultPrintConfig
+        True  -> return defaultPrintConfig {pcWrapCol = Nothing}

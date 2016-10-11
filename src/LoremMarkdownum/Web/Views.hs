@@ -8,6 +8,7 @@ module LoremMarkdownum.Web.Views
 
 
 --------------------------------------------------------------------------------
+import           Data.Maybe                   (isNothing)
 import           Data.Monoid                  ((<>))
 import           Data.Text                    (Text)
 import           Text.Blaze.Html5             (Html, (!))
@@ -21,8 +22,8 @@ import           LoremMarkdownum.Print
 
 
 --------------------------------------------------------------------------------
-index :: MarkdownConfig -> Markdown -> Html
-index mc markdown = H.docTypeHtml $ do
+index :: PrintConfig -> MarkdownConfig -> Markdown -> Html
+index pc mc markdown = H.docTypeHtml $ do
     H.head $ do
         H.title "Lorem Markdownum"
         H.style $ do
@@ -169,6 +170,7 @@ index mc markdown = H.docTypeHtml $ do
                         checkbox (mcNoInlineMarkup mc)   "no-inline-markup"  "No inline markup"
                         checkbox (mcUnderscoreEm mc)     "underscore-em"     $ (H.code "_" <> "-style em")
                         checkbox (mcUnderscoreStrong mc) "underscore-strong" $ (H.code "__" <> "-style strong text")
+                        checkbox (isNothing $ pcWrapCol pc) "no-wrapping"    "No wrapping"
 
                 H.input ! A.type_ "submit" ! A.id "generate" !
                     A.value "Generate some markdown!"
@@ -179,7 +181,7 @@ index mc markdown = H.docTypeHtml $ do
 
         H.div ! A.id "loading" ! A.style "display: none;" $
             H.img ! A.src "loading.gif" ! A.alt "Loading..."
-        H.div ! A.id "markdown-html" $ markdownHtml mc markdown
+        H.div ! A.id "markdown-html" $ markdownHtml pc mc markdown
   where
     loremIpsumUrl  = "http://www.lipsum.com/"
     markdownUrl    = "http://daringfireball.net/projects/markdown/"
@@ -201,7 +203,8 @@ checkbox checked id' label = do
 
 
 --------------------------------------------------------------------------------
-markdownHtml :: MarkdownConfig -> Markdown -> Html
-markdownHtml mc md = do
-    H.pre ! A.class_ "markdown" $ H.toHtml $ runPrint $ printMarkdown mc md
+markdownHtml :: PrintConfig -> MarkdownConfig -> Markdown -> Html
+markdownHtml pc mc md = do
+    H.pre ! A.class_ "markdown" $
+        H.toHtml $ runPrintWith pc $ printMarkdown mc md
     H.div ! A.class_ "html" ! A.style "display: none;" $ previewMarkdown md

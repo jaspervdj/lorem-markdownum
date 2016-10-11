@@ -2,8 +2,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 module LoremMarkdownum.Print
-    ( Print
+    ( PrintConfig (..)
+    , defaultPrintConfig
+
+    , Print
     , runPrint
+    , runPrintWith
     , runPrintLength
 
     , printText
@@ -34,8 +38,21 @@ import qualified Data.Text.Lazy.Builder as TLB
 
 
 --------------------------------------------------------------------------------
+data PrintConfig = PrintConfig
+    { pcWrapCol :: Maybe Int
+    } deriving (Show)
+
+
+--------------------------------------------------------------------------------
+defaultPrintConfig :: PrintConfig
+defaultPrintConfig = PrintConfig
+    { pcWrapCol = Just 80
+    }
+
+
+--------------------------------------------------------------------------------
 data PrintRead = PrintRead
-    { prMaxCol     :: Int
+    { prMaxCol     :: Maybe Int
     , prIndent     :: Text
     , prWrapIndent :: Text
     } deriving (Show)
@@ -57,11 +74,16 @@ newtype Print a = Print {unPrint :: RWS PrintRead Builder PrintState a}
 
 --------------------------------------------------------------------------------
 runPrint :: Print () -> TL.Text
-runPrint pr =
+runPrint = runPrintWith defaultPrintConfig
+
+
+--------------------------------------------------------------------------------
+runPrintWith :: PrintConfig -> Print () -> TL.Text
+runPrintWith config pr =
     let (_, _, bld) = runRWS (unPrint (pr >> printFlush)) printRead printState
     in TLB.toLazyText bld
   where
-    printRead  = PrintRead 80 "" ""
+    printRead  = PrintRead (pcWrapCol config) "" ""
     printState = PrintState 0 False (mempty, 0) False
 
 
@@ -105,7 +127,7 @@ printNl = Print $ do
 --------------------------------------------------------------------------------
 printFlush :: Print ()
 printFlush = Print $ do
-    maxCol     <- prMaxCol   <$> ask
+    mbMaxCol   <- prMaxCol   <$> ask
     indent     <- prIndent   <$> ask
     wrapIndent <- prWrapIndent   <$> ask
     space      <- psSpace    <$> get
@@ -118,7 +140,13 @@ printFlush = Print $ do
             | space     = " "
             | otherwise = ""
 
-    if col == 0 || col + T.length prefix + l <= maxCol
+        dontWrapYet
+            | col == 0  = True
+            | otherwise = case mbMaxCol of
+                Nothing     -> True
+                Just maxCol -> col + T.length prefix + l <= maxCol
+
+    if dontWrapYet
         then do
             tell $ TLB.fromText prefix <> b
             modify $ \s -> s
