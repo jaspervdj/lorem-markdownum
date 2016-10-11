@@ -50,3 +50,4 @@ These are the supported parameters:
 - `underscore-em`
 - `underscore-strong`
 - `num-blocks`
+- `no-wrapping`
