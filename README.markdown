@@ -14,7 +14,7 @@
 An HTTP API is available. You can use it by sending a `GET` request to
 `/markdown.txt`.
 
-    $ curl 'jaspervdj.be/lorem-markdownum/markdown.txt'
+    $ curl 'https://jaspervdj.be/lorem-markdownum/markdown.txt'
     # In diva in Alcides cumque postquam reserato
 
     ## Proxima bellare te tractata Atrides exercet
@@ -26,7 +26,7 @@ An HTTP API is available. You can use it by sending a `GET` request to
 
 Arguments can be passed as query parameters, e.g.:
 
-    $ curl 'jaspervdj.be/lorem-markdownum/markdown.txt?underline-headers=on'
+    $ curl 'https://jaspervdj.be/lorem-markdownum/markdown.txt?underline-headers=on'
     In diva in Alcides cumque postquam reserato
     ===========================================
 
