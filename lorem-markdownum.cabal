@@ -54,6 +54,6 @@ Executable lorem-markdownum-web
     mtl              >= 2.1  && < 2.3,
     random           >= 1.0  && < 1.2,
     snap-blaze       >= 0.2  && < 0.3,
-    snap-core        >= 0.9  && < 0.10,
-    snap-server      >= 0.9  && < 0.10,
+    snap-core        >= 0.9  && < 1.1,
+    snap-server      >= 0.9  && < 1.1,
     text             >= 0.11 && < 1.3
