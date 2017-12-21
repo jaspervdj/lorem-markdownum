@@ -100,6 +100,17 @@ index pc mc markdown = H.docTypeHtml $ do
             "    width: 640px;"
             "}"
 
+            "div#info a.donate {"
+            "    background-color: #409e48;"
+            "    border-radius: 3px;"
+            "    color: #ffffff;"
+            "    float: right;"
+            "    font-weight: bold;"
+            "    margin: 3px;"
+            "    padding: 3px 6px;"
+            "    text-decoration: none;"
+            "}"
+
             -- Blockquotes are rendered awfully by default so we need to fix
             -- that a bit.
             "blockquote {"
@@ -124,12 +135,9 @@ index pc mc markdown = H.docTypeHtml $ do
         H.div ! A.id "info" $ do
 
             -- Flattr
-            H.a ! A.href "https://flattr.com/submit/auto?user_id=jaspervdj&url=http%3A%2F%2Fjaspervdj.be%2Florem-markdownum&title=Lorem%20Markdownum"
-                ! A.target "_blank" ! A.style "float: right;" $
-                    H.img
-                        ! A.src "//api.flattr.com/button/flattr-badge-large.png"
-                        ! A.alt "Flattr this" ! A.title "Flattr this"
-                        ! A.style "border: none;"
+            H.a ! A.href "https://jaspervdj.be/contact.html#donate"
+                ! A.target "_blank"
+                ! A.class_ "donate" $ "Donate"
 
             H.h1 "Lorem Markdownum"
             H.p $ do
