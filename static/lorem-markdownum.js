@@ -40,6 +40,7 @@ $(document).ready(function() {
                 '#no-lists',
                 '#no-inline-markup',
                 '#reference-links',
+                '#no-external-links',
                 '#underline-headers',
                 '#underscore-em',
                 '#underscore-strong',

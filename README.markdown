@@ -46,6 +46,7 @@ These are the supported parameters:
 - `no-lists`
 - `no-inline-markup`
 - `reference-links`
+- `no-external-links`
 - `underline-headers`
 - `underscore-em`
 - `underscore-strong`

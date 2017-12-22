@@ -166,6 +166,7 @@ index pc mc markdown = H.docTypeHtml $ do
                         checkbox (mcNoLists mc)          "no-lists"          "No lists"
                         checkbox (mcUnderlineHeaders mc) "underline-headers" "Underlined headers"
                         checkbox (mcReferenceLinks mc)   "reference-links"   "Reference-style links"
+                        checkbox (mcNoExternalLinks mc)  "no-external-links" "No external links"
                         H.input ! A.type_ "text" ! A.size "2"
                             ! A.name "num-blocks" ! A.id "num-blocks"
                             ! A.class_ "small"

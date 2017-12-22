@@ -34,7 +34,7 @@ module LoremMarkdownum.Gen.Markdown
 
 --------------------------------------------------------------------------------
 import           Control.Monad                 (forM, forM_, replicateM, when)
-import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
+import           Control.Monad.Reader          (ReaderT, ask, runReaderT, asks)
 import           Control.Monad.State           (StateT, evalStateT, get, modify)
 import           Data.List                     (intersperse)
 import           Data.Map.Strict               (Map)
@@ -75,6 +75,7 @@ data MarkdownConfig = MarkdownConfig
     , mcUnderscoreStrong :: Bool
     , mcNumBlocks        :: Maybe Int
     , mcHeaderDepth      :: Int
+    , mcNoExternalLinks  :: Bool
     } deriving (Show)
 
 
@@ -84,7 +85,7 @@ mkDefaultMarkdownConfig :: Markov (Token Int)
                         -> CodeConfig
                         -> MarkdownConfig
 mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
-    False False False False False False False False False Nothing 2
+    False False False False False False False False False Nothing 2 False
 
 
 --------------------------------------------------------------------------------
@@ -163,8 +164,8 @@ markdownLinks = M.toList . M.fromList . concatMap blockLinks
 --------------------------------------------------------------------------------
 genMarkdown :: MonadGen m => MarkdownGen m Markdown
 genMarkdown = do
-    noHeaders     <- mcNoHeaders <$> ask
-    maxHDepth     <- mcHeaderDepth <$> ask
+    noHeaders     <- asks mcNoHeaders
+    maxHDepth     <- asks mcHeaderDepth
     numBlocks     <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
     numSections   <- randomInt (2, max 3 (numBlocks `div` 2 + 1))
     partitioning  <- partitionNicely numSections (numBlocks - 1)
@@ -202,9 +203,9 @@ genSection numBlocks headerDepth maxHDepth
 -- TODO (jaspervdj: Not sure about the name
 genSpecialBlock :: MonadGen m => MarkdownGen m Block
 genSpecialBlock = do
-    noCode   <- mcNoCode   <$> ask
-    noQuotes <- mcNoQuotes <$> ask
-    noLists  <- mcNoLists  <$> ask
+    noCode   <- asks mcNoCode
+    noQuotes <- asks mcNoQuotes
+    noLists  <- asks mcNoLists
     let freqs =
             [ (if noLists  then 0 else 1, OrderedListB   <$> genOrderedList)
             , (if noLists  then 0 else 1, UnorderedListB <$> genUnorderedList)
@@ -273,7 +274,7 @@ genElementToken = do
 --------------------------------------------------------------------------------
 genWord :: MonadGen m => Int -> MarkdownGen m Text
 genWord len = do
-    wordSamples <- mcWordFrequency <$> ask
+    wordSamples <- asks mcWordFrequency
     case M.lookup len wordSamples of
         Just ft -> sampleFromFrequencyTree ft
         Nothing -> error $
@@ -370,23 +371,34 @@ genMarkupConstructor m = oneOf
 --------------------------------------------------------------------------------
 genLink :: MonadGen m => MarkdownGen m Text
 genLink = do
-    n0          <- randomInt (1, 2)
-    domainParts <- replicateM n0 genLinkPart
-    n1          <- randomInt (0, 2)
-    pathParts   <- replicateM n1 genLinkPart
-    domainPart  <- sampleFromList
-        [T.concat domainParts, T.intercalate "-" domainParts]
-    pathPart    <- sampleFromList
-        [T.concat pathParts, T.intercalate "-" pathParts]
-    www         <- sampleFromFrequencies [("", 3), ("www.", 1)]
-    tld         <- sampleFromList [".org", ".net", ".com", ".io"]
-    ext         <- if T.null pathPart
-        then return ""
-        else sampleFromFrequencies
-                [("", 5), (".php", 1), (".html", 2), (".aspx", 1)]
-
-    return $ T.concat ["http://", www, domainPart, tld, "/", pathPart, ext]
+    noExternalLinks <- asks mcNoExternalLinks
+    if noExternalLinks then genInternalLink else genExternalLink
   where
+    genInternalLink :: MonadGen m => MarkdownGen m Text
+    genInternalLink = do
+        n         <- randomInt (1, 3)
+        linkParts <- replicateM n genLinkPart
+        return $ "#" <> T.intercalate "-" linkParts
+
+    genExternalLink :: MonadGen m => MarkdownGen m Text
+    genExternalLink = do
+        n0          <- randomInt (1, 2)
+        domainParts <- replicateM n0 genLinkPart
+        n1          <- randomInt (0, 2)
+        pathParts   <- replicateM n1 genLinkPart
+        domainPart  <- sampleFromList
+            [T.concat domainParts, T.intercalate "-" domainParts]
+        pathPart    <- sampleFromList
+            [T.concat pathParts, T.intercalate "-" pathParts]
+        www         <- sampleFromFrequencies [("", 3), ("www.", 1)]
+        tld         <- sampleFromList [".org", ".net", ".com", ".io"]
+        ext         <- if T.null pathPart
+            then return ""
+            else sampleFromFrequencies
+                    [("", 5), (".php", 1), (".html", 2), (".aspx", 1)]
+
+        return $ T.concat ["http://", www, domainPart, tld, "/", pathPart, ext]
+
     genLinkPart :: MonadGen m => MarkdownGen m Text
     genLinkPart = do
         token <- genToken
