@@ -101,6 +101,10 @@ markdown = do
     pc                 <- getPrintConfig
     m <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
     Snap.modifyResponse $ Snap.setContentType "text/plain"
+
+    -- This allows the resource to be fetched using the Fetch API.
+    Snap.modifyResponse $ Snap.setHeader "Access-Control-Allow-Origin" "*"
+
     Snap.writeLazyText $ runPrintWith pc $ printMarkdown mc m
 
 
