@@ -52,3 +52,4 @@ These are the supported parameters:
 - `underscore-strong`
 - `num-blocks`
 - `no-wrapping`
+- `fenced-code-blocks`
