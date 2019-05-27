@@ -1,5 +1,5 @@
+resolver: 'lts-13.0'
 flags: {}
 packages:
   - .
-resolver: nightly-2017-12-14
 extra-deps: []
