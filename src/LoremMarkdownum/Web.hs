@@ -155,6 +155,7 @@ getMarkdownConfig = do
     underscoreEm     <- getBoolParam "underscore-em"
     underscoreStrong <- getBoolParam "underscore-strong"
     numBlocks        <- getIntParam  "num-blocks"
+    fencedCodeBlocks <- getBoolParam "fenced-code-blocks"
     return mc
         { mcNoHeaders        = noHeaders
         , mcNoCode           = noCode
@@ -167,6 +168,7 @@ getMarkdownConfig = do
         , mcUnderscoreEm     = underscoreEm
         , mcUnderscoreStrong = underscoreStrong
         , mcNumBlocks        = fmap (max 1 . min 15) numBlocks
+        , mcFencedCodeBlocks = fencedCodeBlocks
         }
 
 

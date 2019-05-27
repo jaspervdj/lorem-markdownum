@@ -76,6 +76,7 @@ data MarkdownConfig = MarkdownConfig
     , mcNumBlocks        :: Maybe Int
     , mcHeaderDepth      :: Int
     , mcNoExternalLinks  :: Bool
+    , mcFencedCodeBlocks :: Bool
     } deriving (Show)
 
 
@@ -85,7 +86,7 @@ mkDefaultMarkdownConfig :: Markov (Token Int)
                         -> CodeConfig
                         -> MarkdownConfig
 mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
-    False False False False False False False False False Nothing 2 False
+    False False False False False False False False False Nothing 2 False False
 
 
 --------------------------------------------------------------------------------
@@ -427,7 +428,12 @@ printBlock mc (HeaderB h)        = printHeader mc h
 printBlock mc (ParagraphB p)     = printParagraph mc p
 printBlock mc (OrderedListB l)   = printOrderedList mc l
 printBlock mc (UnorderedListB l) = printUnorderedList mc l
-printBlock _  (CodeB c)          = printIndent4 (printCode c)
+printBlock mc  (CodeB c)
+    | mcFencedCodeBlocks mc      = do
+        printText "```" >> printNl
+        printCode c
+        printText "```" >> printNl
+    | otherwise                  = printIndent4 (printCode c)
 printBlock mc (QuoteB p)         = printWrapIndent "> " $
     printText "> " >> printParagraph mc p
 
