@@ -45,7 +45,8 @@ $(document).ready(function() {
                 '#underscore-em',
                 '#underscore-strong',
                 '#num-blocks',
-                '#no-wrapping'];
+                '#no-wrapping',
+                '#fenced-code-blocks'];
 
         // Form processing
         var query = {};

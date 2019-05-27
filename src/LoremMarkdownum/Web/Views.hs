@@ -162,11 +162,12 @@ index pc mc markdown = H.docTypeHtml $ do
 
                 H.div ! A.id "advanced" ! A.style "display: none;" $ do
                     H.div ! A.class_ "column" ! A.style "float: right;" $ do
-                        checkbox (mcNoQuotes mc)         "no-quotes"         "No blockquotes"
-                        checkbox (mcNoLists mc)          "no-lists"          "No lists"
                         checkbox (mcUnderlineHeaders mc) "underline-headers" "Underlined headers"
                         checkbox (mcReferenceLinks mc)   "reference-links"   "Reference-style links"
-                        checkbox (mcNoExternalLinks mc)  "no-external-links" "No external links"
+
+                        checkbox (mcUnderscoreEm mc)     "underscore-em"     $ (H.code "_" <> "-style em")
+                        checkbox (mcUnderscoreStrong mc) "underscore-strong" $ (H.code "__" <> "-style strong text")
+                        checkbox (mcFencedCodeBlocks mc) "fenced-code-blocks" $ (H.code "```" <> "-style code blocks")
                         H.input ! A.type_ "text" ! A.size "2"
                             ! A.name "num-blocks" ! A.id "num-blocks"
                             ! A.class_ "small"
@@ -177,8 +178,9 @@ index pc mc markdown = H.docTypeHtml $ do
                         checkbox (mcNoHeaders mc)        "no-headers"        "No headers"
                         checkbox (mcNoCode mc)           "no-code"           "No code snippets"
                         checkbox (mcNoInlineMarkup mc)   "no-inline-markup"  "No inline markup"
-                        checkbox (mcUnderscoreEm mc)     "underscore-em"     $ (H.code "_" <> "-style em")
-                        checkbox (mcUnderscoreStrong mc) "underscore-strong" $ (H.code "__" <> "-style strong text")
+                        checkbox (mcNoQuotes mc)         "no-quotes"         "No blockquotes"
+                        checkbox (mcNoLists mc)          "no-lists"          "No lists"
+                        checkbox (mcNoExternalLinks mc)  "no-external-links" "No external links"
                         checkbox (isNothing $ pcWrapCol pc) "no-wrapping"    "No wrapping"
 
                 H.input ! A.type_ "submit" ! A.id "generate" !
