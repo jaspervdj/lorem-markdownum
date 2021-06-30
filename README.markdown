@@ -57,7 +57,7 @@ These are the supported parameters:
 ## Building and running from source
 
 - Install [stack](https://docs.haskellstack.org/en/stable/install_and_upgrade/).
-- Issue `stack build --copy-bins` to build the project and put the executable in
-  `~/.local/bin`.
+- Issue `stack build --copy-bins` to build the project.  This will put the
+  executable in `~/.local/bin`.
 - Use `mkdir log` to ensure that directory exists.
 - Run using e.g. `lorem-markdownum-web 127.0.0.1 8080`.
