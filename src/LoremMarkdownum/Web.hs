@@ -79,7 +79,7 @@ readDataFiles config = do
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-    config   <- configFromEnv
+    config <- configFromEnv
     let snapConfig =
             Snap.setBind (BC.pack $ cBindAddress config) $
             Snap.setPort (cBindPort config) $
@@ -87,18 +87,18 @@ main = do
             Snap.setErrorLog (Snap.ConfigIoLog $ BC.hPutStrLn IO.stderr) $
             Snap.defaultConfig
     appEnv <- readDataFiles config
-    Snap.httpServe snapConfig $ runReaderT app appEnv
+    Snap.httpServe snapConfig $ runReaderT (app config) appEnv
 
 
 --------------------------------------------------------------------------------
-app :: AppM ()
-app = Snap.route
+app :: Config -> AppM ()
+app config = Snap.route
     [ ("",                     Snap.ifTop index)
     , ("markdown.txt",         markdown)
     , ("markdown-html.html",   markdownHtml)
-    , ("loading.gif",          Snap.serveFile "static/loading.gif")
-    , ("lorem-markdownum.js",  Snap.serveFile "static/lorem-markdownum.js")
-    , ("jquery-1.10.2.min.js", Snap.serveFile "static/jquery-1.10.2.min.js")
+    , ("loading.gif",          Snap.serveFile $ cStaticDir config </> "loading.gif")
+    , ("lorem-markdownum.js",  Snap.serveFile $ cStaticDir config </> "lorem-markdownum.js")
+    , ("jquery-1.10.2.min.js", Snap.serveFile $ cStaticDir config </> "jquery-1.10.2.min.js")
     ]
 
 
