@@ -7,14 +7,16 @@ import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
 import           Control.Monad.Trans           (liftIO)
 import           Data.ByteString               (ByteString)
 import qualified Data.ByteString.Char8         as BC
+import           Data.Maybe                    (fromMaybe)
 import qualified Data.Text                     as T
 import qualified Snap.Blaze                    as Snap
-import           Snap.Core                     (Snap)
 import qualified Snap.Core                     as Snap
+import           Snap.Core                     (Snap)
 import qualified Snap.Http.Server              as Snap
 import qualified Snap.Util.FileServe           as Snap
-import           System.Environment            (getArgs, getProgName)
-import           System.Exit                   (exitFailure)
+import           System.Environment            (lookupEnv)
+import           System.FilePath               ((</>))
+import qualified System.IO                     as IO
 
 
 --------------------------------------------------------------------------------
@@ -30,6 +32,24 @@ import qualified LoremMarkdownum.Web.Views     as Views
 
 
 --------------------------------------------------------------------------------
+data Config = Config
+    { cBindAddress :: String
+    , cBindPort    :: Int
+    , cDataDir     :: FilePath
+    , cStaticDir   :: FilePath
+    } deriving (Show)
+
+
+--------------------------------------------------------------------------------
+configFromEnv :: IO Config
+configFromEnv = Config
+    <$> (fromMaybe "127.0.0.1" <$> lookupEnv "LOREM_MARKDOWNUM_BIND_ADDRESS")
+    <*> (maybe 8000 read       <$> lookupEnv "LOREM_MARKDOWNUM_BIND_PORT")
+    <*> (fromMaybe "data"      <$> lookupEnv "LOREM_MARKDOWNUM_DATA_DIR")
+    <*> (fromMaybe "static"    <$> lookupEnv "LOREM_MARKDOWNUM_STATIC_DIR")
+
+
+--------------------------------------------------------------------------------
 type AppEnv = (MarkdownConfig, MarkdownState)
 
 
@@ -38,10 +58,10 @@ type AppM a = ReaderT AppEnv Snap a
 
 
 --------------------------------------------------------------------------------
-readDataFiles :: IO AppEnv
-readDataFiles = do
-    techspeak     <- concat <$> streamsFromDir "data/techspeak"
-    metamorphoses <- streamsFromDir "data/metamorphoses"
+readDataFiles :: Config -> IO AppEnv
+readDataFiles config = do
+    techspeak     <- concat <$> streamsFromDir (cDataDir config </> "techspeak")
+    metamorphoses <- streamsFromDir (cDataDir config </> "metamorphoses")
     let codeFreqTree  = FT.fromList $ map T.toLower $ streamElements techspeak
         wordFrequency = wordFrequencyTreePerLength $ concat metamorphoses
         tokenQueue    = [Element "lorem", Element "markdownum"]
@@ -59,17 +79,15 @@ readDataFiles = do
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-    args     <- getArgs
-    progName <- getProgName
-    case args of
-        [address, port] -> do
-            let config = Snap.setBind (BC.pack address) $
-                    Snap.setPort (read port) (Snap.defaultConfig)
-            appEnv <- readDataFiles
-            Snap.httpServe config $ runReaderT app appEnv
-        _               -> do
-            putStrLn $ "Usage: " ++ progName ++ " <address> <port>"
-            exitFailure
+    config   <- configFromEnv
+    let snapConfig =
+            Snap.setBind (BC.pack $ cBindAddress config) $
+            Snap.setPort (cBindPort config) $
+            Snap.setAccessLog (Snap.ConfigIoLog $ BC.hPutStrLn IO.stderr) $
+            Snap.setErrorLog (Snap.ConfigIoLog $ BC.hPutStrLn IO.stderr) $
+            Snap.defaultConfig
+    appEnv <- readDataFiles config
+    Snap.httpServe snapConfig $ runReaderT app appEnv
 
 
 --------------------------------------------------------------------------------

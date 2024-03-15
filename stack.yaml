@@ -1,5 +1,6 @@
-resolver: 'lts-17.9'
-flags: {}
+resolver: 'lts-22.3'
 packages:
   - .
-extra-deps: []
+nix:
+  packages:
+  - 'zlib'
