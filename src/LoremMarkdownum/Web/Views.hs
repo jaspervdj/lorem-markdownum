@@ -89,6 +89,10 @@ index pc mc markdown = H.docTypeHtml $ do
             "    width: 25px;"
             "}"
 
+            "form#form-copy {"
+            "    float: right;"
+            "}"
+
             "pre, code {"
             "    color: #333;"
             "    font-family: 'Inconsolata', 'Courier New', monospace;"
@@ -180,6 +184,10 @@ index pc mc markdown = H.docTypeHtml $ do
                 checkbox False "show-advanced" "Advanced settings"
                 " "
                 checkbox False "preview-html" "Preview as HTML"
+
+        H.form ! A.id "form-copy" ! A.method "GET" ! A.action "?" $
+            H.input ! A.type_ "submit" ! A.id "copy" !
+                A.value "Copy to clipboard"
 
         H.div ! A.id "loading" ! A.style "display: none;" $
             H.img ! A.src "loading.gif" ! A.alt "Loading..."

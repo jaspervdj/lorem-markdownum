@@ -73,4 +73,10 @@ $(document).ready(function() {
 
         return false;
     });
+
+    $('#form-copy').submit(function() {
+        var text = $('#markdown-html pre.markdown').text();
+        navigator.clipboard.writeText(text);
+        return false;
+    });
 });
