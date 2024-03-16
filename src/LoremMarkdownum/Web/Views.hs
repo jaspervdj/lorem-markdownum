@@ -69,16 +69,17 @@ index pc mc markdown = H.docTypeHtml $ do
             "}"
 
             "div#info p {"
-            "    border-bottom: solid #777 2px;"
-            "    border-top: solid #777 2px;"
             "    line-height: 140%;"
-            "    margin: 12px 0px 12px 0px;"
-            "    padding: 12px 0px 12px 0px;"
+            "    margin: 12px 0px;"
             "    text-align: justify;"
             "}"
 
             "div#info a {"
             "    color: #222;"
+            "}"
+
+            "form#form-generate {"
+            "    margin: 12px 0px;"
             "}"
 
             "input.small {"
@@ -135,6 +136,7 @@ index pc mc markdown = H.docTypeHtml $ do
                 ! A.class_ "donate" $ "Donate"
 
             H.h1 "Lorem Markdownum"
+            H.hr
             H.p $ do
                 "Inspired by the many excellent "
                 H.a ! A.href loremIpsumUrl $ "lorem ipsum generators"
@@ -153,6 +155,7 @@ index pc mc markdown = H.docTypeHtml $ do
                 ". An "
                 H.a ! A.href httpApiUrl $ "HTTP API"
                 " is also available!"
+            H.hr
             H.form ! A.id "form-generate" ! A.method "GET" ! A.action "?" $ do
 
                 H.div ! A.id "advanced" ! A.style "display: none;" $ do
@@ -184,6 +187,7 @@ index pc mc markdown = H.docTypeHtml $ do
                 checkbox False "show-advanced" "Advanced settings"
                 " "
                 checkbox False "preview-html" "Preview as HTML"
+            H.hr
 
         H.form ! A.id "form-copy" ! A.method "GET" ! A.action "?" $
             H.input ! A.type_ "submit" ! A.id "copy" !
