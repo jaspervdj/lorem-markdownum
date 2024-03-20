@@ -74,7 +74,8 @@ $(document).ready(function() {
         return false;
     });
 
-    $('#form-copy').submit(function() {
+    $('#copy').click(function(event) {
+        event.preventDefault();
         var text = $('#markdown-html pre.markdown').text();
         navigator.clipboard.writeText(text);
         return false;
