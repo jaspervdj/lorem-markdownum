@@ -185,7 +185,7 @@ getMarkdownConfig = do
         , mcUnderlineHeaders = underlineHeaders
         , mcUnderscoreEm     = underscoreEm
         , mcUnderscoreStrong = underscoreStrong
-        , mcNumBlocks        = fmap (max 1 . min 15) numBlocks
+        , mcNumBlocks        = fmap (max 1 . min 50) numBlocks
         , mcFencedCodeBlocks = fencedCodeBlocks
         }
 
