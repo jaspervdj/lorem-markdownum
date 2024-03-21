@@ -1,83 +1,79 @@
-$(document).ready(function() {
-    function isShowAdvanced() {
-        return $('#show-advanced').is(':checked');
-    }
+"use strict";
 
-    function isPreviewHtml() {
-        return $('#preview-html').is(':checked');
-    }
-
+document.addEventListener("DOMContentLoaded", function() {
     function pokePreviewHtml() {
-        if (isPreviewHtml()) {
-            $('#markdown-html pre.markdown').hide();
-            $('#markdown-html div.html').show();
-        } else {
-            $('#markdown-html div.html').hide();
-            $('#markdown-html pre.markdown').show();
-        }
+        const markdown = document.querySelector("#markdown-html pre.markdown");
+        const html = document.querySelector("#markdown-html div.html");
+        const preview = document.getElementById("preview-html").checked;
+        markdown.style.display = preview ? "none" : "block";
+        html.style.display = preview ? "block" : "none";
     }
 
-    $('#show-advanced').on('change', function() {
-        if (isShowAdvanced()) {
-            $('#advanced').slideDown();
-        } else {
-            $('#advanced').slideUp();
-        }
+    const advancedToggle = document.getElementById("show-advanced");
+    advancedToggle.addEventListener("change", function() {
+        const advanced = document.getElementById("advanced");
+        advanced.style.display = advancedToggle.checked ? "flex" : "none";
     });
 
-    $('#preview-html').on('change', function() {
+    document.getElementById("preview-html").addEventListener("change", function() {
         pokePreviewHtml();
     });
 
-    $('#form-generate').submit(function() {
-        $('#loading').show();
-        $('#markdown-html').hide();
+    document.getElementById("form-generate").addEventListener("submit", function(event) {
+        event.preventDefault();
 
-        var inputIds = [
-                '#no-headers',
-                '#no-code',
-                '#no-quotes',
-                '#no-lists',
-                '#no-inline-markup',
-                '#reference-links',
-                '#no-external-links',
-                '#underline-headers',
-                '#underscore-em',
-                '#underscore-strong',
-                '#num-blocks',
-                '#no-wrapping',
-                '#fenced-code-blocks'];
+        const dst = document.getElementById("markdown-html");
+        const loading = document.getElementById("loading");
+        dst.style.display = "none";
+        loading.style.display = "block";
+
+        const inputIds = [
+            "no-headers",
+            "no-code",
+            "no-quotes",
+            "no-lists",
+            "no-inline-markup",
+            "reference-links",
+            "no-external-links",
+            "underline-headers",
+            "underscore-em",
+            "underscore-strong",
+            "num-blocks",
+            "no-wrapping",
+            "fenced-code-blocks"
+        ];
 
         // Form processing
-        var query = {};
-        for (var i = 0; i < inputIds.length; i++) {
-            var $input = $(inputIds[i]);
-            var name   = $input.attr('name');
-            if ($input.attr('type') === 'checkbox') {
-                if ($input.is(':checked')) {
-                    query[name] = 'on';
+        const query = {};
+        for (const inputId of inputIds) {
+            const input = document.getElementById(inputId);
+            if (input.type === "checkbox") {
+                if (input.checked) {
+                    query[input.name] = "on";
                 }
-            } else if ($input.attr('type') === 'text') {
-                if ($input.val().length > 0) {
-                    query[name] = $input.val();
+            } else if (input.type === "text") {
+                if (input.value.length > 0) {
+                    query[name] = input.value;
                 }
             }
         }
 
-        $.get('markdown-html.html', query, function(data) {
-            $('#loading').hide();
-            $('#markdown-html').html(data);
+        const url = new URL("markdown-html.html", window.location.href);
+        url.search = new URLSearchParams(query).toString();
+        const request = new XMLHttpRequest();
+        request.addEventListener("load", function() {
+            dst.innerHTML = request.responseText;
             pokePreviewHtml();
-            $('#markdown-html').slideDown();
+            dst.style.display = "block";
+            loading.style.display = "none";
         });
-
-        return false;
+        request.open("GET", url);
+        request.send();
     });
 
-    $('#copy').click(function(event) {
+    document.getElementById("copy").addEventListener("click", function(event) {
         event.preventDefault();
-        var text = $('#markdown-html pre.markdown').text();
-        navigator.clipboard.writeText(text);
-        return false;
+        const markdown = document.querySelector("#markdown-html pre.markdown")
+        navigator.clipboard.writeText(markdown.innerText);
     });
 });

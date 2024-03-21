@@ -96,10 +96,8 @@ app config = Snap.route
     [ ("",                      Snap.ifTop index)
     , ("markdown.txt",          markdown)
     , ("markdown-html.html",    markdownHtml)
-    , ("loading.gif",           Snap.serveFile $ cStaticDir config </> "loading.gif")
     , ("lorem-markdownum.css",  Snap.serveFile $ cStaticDir config </> "lorem-markdownum.css")
     , ("lorem-markdownum.js",   Snap.serveFile $ cStaticDir config </> "lorem-markdownum.js")
-    , ("jquery-1.10.2.min.js",  Snap.serveFile $ cStaticDir config </> "jquery-1.10.2.min.js")
     ]
 
 

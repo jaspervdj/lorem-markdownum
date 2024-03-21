@@ -29,7 +29,6 @@ index pc mc markdown = H.docTypeHtml $ do
         H.meta H.! A.name "viewport" H.! A.content "width=device-width, initial-scale=1"
         H.title "Lorem Markdownum"
         H.link ! A.rel "stylesheet" ! A.type_ "text/css" ! A.href "lorem-markdownum.css"
-        H.script ! A.type_ "text/javascript" ! A.src "jquery-1.10.2.min.js" $ ""
         H.script ! A.type_ "text/javascript" ! A.src "lorem-markdownum.js"  $ ""
 
     H.body $ do
@@ -97,8 +96,7 @@ index pc mc markdown = H.docTypeHtml $ do
 
         H.hr
         H.div ! A.id "results" $ do
-            H.div ! A.id "loading" ! A.style "display: none;" $
-                H.img ! A.src "loading.gif" ! A.alt "Loading..."
+            H.div ! A.id "loading" ! A.style "display: none;" $ "⌛"
             H.div ! A.id "markdown-html" $ markdownHtml pc mc markdown
   where
     loremIpsumUrl  = "http://www.lipsum.com/"
