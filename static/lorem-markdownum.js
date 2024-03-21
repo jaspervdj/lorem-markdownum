@@ -10,10 +10,12 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     const advancedToggle = document.getElementById("show-advanced");
-    advancedToggle.addEventListener("change", function() {
+    function pokeAdvanced() {
         const advanced = document.getElementById("advanced");
         advanced.style.display = advancedToggle.checked ? "flex" : "none";
-    });
+    };
+    advancedToggle.addEventListener("change", pokeAdvanced);
+    pokeAdvanced();
 
     document.getElementById("preview-html").addEventListener("change", function() {
         pokePreviewHtml();
