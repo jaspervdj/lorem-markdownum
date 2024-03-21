@@ -28,116 +28,14 @@ index pc mc markdown = H.docTypeHtml $ do
         H.meta H.! A.charset "UTF-8"
         H.meta H.! A.name "viewport" H.! A.content "width=device-width, initial-scale=1"
         H.title "Lorem Markdownum"
-        H.style $ do
-            "html {"
-            "    text-align: center;"
-            "}"
-
-            "body {"
-            "    background-color: #fafafa;"
-            "    color: #111;"
-            "    font-family: serif;"
-            "    font-size: 16px;"
-            "    margin: 0px auto;"
-            "    padding: 12px;"
-            "    text-align: left;"
-            "    max-width: 640px;"
-            "}"
-
-            "div#info h1 {"
-            "    color: #777;"
-            "    font-size: 24px;"
-            "    font-style: italic;"
-            "    font-variant: small-caps;"
-            "    margin: 0px;"
-            "    text-align: center;"
-            "}"
-
-            "div#info p {"
-            "    line-height: 140%;"
-            "    margin: 12px 0px;"
-            "    text-align: justify;"
-            "}"
-
-            "div#info a {"
-            "    color: #222;"
-            "}"
-
-            "div#controls div#advanced {"
-            "    margin-bottom: 24px;"
-            "}"
-
-            "div#controls div.columns {"
-            "    display: block;"
-            "}"
-
-            "@media (min-width: 480px) {"
-            "    div#controls div.columns {"
-            "        display: flex;"
-            "        justify-content: space-between;"
-            "    }"
-            "}"
-
-            "div#controls div.column {"
-            "    display: inline;"
-            "    flex-grow: 1;"
-            "    flex-basis: 0;"
-            "}"
-
-            "div.buttons {"
-            "    margin: 12px 0px 6px 0px;"
-            "}"
-
-            "div.buttons input {"
-            "    width: 100%;"
-            "    margin: 0px 0px 6px 0px;"
-            "}"
-
-            "div.buttons div.column {"
-            "    margin: 0px 3px 0px 3px;"
-            "}"
-
-            "input.small {"
-            "    margin: 0px 6px 0px 0px;"
-            "    padding: none;"
-            "    text-align: center;"
-            "    width: 25px;"
-            "}"
-
-            "div#output {"
-            "    margin: 0px 6px 0px 0px;"
-            "    padding: none;"
-            "    text-align: center;"
-            "    width: 25px;"
-            "}"
-
-            "pre, code {"
-            "    color: #333;"
-            "    font-family: 'Inconsolata', 'Courier New', monospace;"
-            "    font-size: 14px;"
-            "}"
-
-            "div#loading {"
-            "    text-align: center;"
-            "    max-width: 640px;"
-            "}"
-
-            -- Blockquotes are rendered awfully by default so we need to fix
-            -- that a bit.
-            "blockquote {"
-            "    border-left: solid #777 2px;"
-            "    margin-left: 12px;"
-            "    padding-left: 12px;"
-            "}"
-
+        H.link ! A.rel "stylesheet" ! A.type_ "text/css" ! A.href "lorem-markdownum.css"
         H.script ! A.type_ "text/javascript" ! A.src "jquery-1.10.2.min.js" $ ""
         H.script ! A.type_ "text/javascript" ! A.src "lorem-markdownum.js"  $ ""
 
     H.body $ do
+        H.header "Lorem Markdownum"
+        H.hr
         H.div ! A.id "info" $ do
-
-            H.h1 "Lorem Markdownum"
-            H.hr
             H.p $ do
                 "Inspired by the many excellent "
                 H.a ! A.href loremIpsumUrl $ "lorem ipsum generators"
@@ -145,13 +43,16 @@ index pc mc markdown = H.docTypeHtml $ do
                 H.a ! A.href markdownUrl $ "markdown format"
                 ". In order to do so, it uses "
                 H.a ! A.href markovChainUrl $ "Markov Chains"
-                " and many heuristics. It was written in "
+                " and many heuristics."
+
+            H.p $ do
+                "Written in "
                 H.a ! A.href haskellUrl $ "Haskell"
-                " and the source code is available "
-                H.a ! A.href githubUrl $ "on GitHub"
-                ". Created by "
+                " by "
                 H.a ! A.href jaspervdjUrl $ "Jasper Van der Jeugt"
-                ". An "
+                ". The source code is "
+                H.a ! A.href githubUrl $ "on GitHub"
+                " and an "
                 H.a ! A.href httpApiUrl $ "HTTP API"
                 " is also available!"
 
@@ -193,8 +94,8 @@ index pc mc markdown = H.docTypeHtml $ do
                     H.div ! A.class_ "column" $
                         H.input ! A.type_ "submit" ! A.id "generate" !
                             A.value "Generate some markdown!"
-            H.hr
 
+        H.hr
         H.div ! A.id "results" $ do
             H.div ! A.id "loading" ! A.style "display: none;" $
                 H.img ! A.src "loading.gif" ! A.alt "Loading..."
