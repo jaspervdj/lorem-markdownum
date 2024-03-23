@@ -58,29 +58,29 @@ index pc mc markdown = H.docTypeHtml $ do
         H.hr
         H.div H.! A.id "controls" $ do
             H.form ! A.id "form-generate" ! A.method "GET" $ do
+                H.div ! A.id "advanced" ! A.class_ "slider" ! A.style "height: 0px" $
+                    H.div ! A.class_ "columns" ! A.style "display: flex;" $ do
+                        H.div ! A.class_ "column" $ do
+                            checkbox (mcNoHeaders mc)        "no-headers"        "No headers"
+                            checkbox (mcNoCode mc)           "no-code"           "No code snippets"
+                            checkbox (mcNoInlineMarkup mc)   "no-inline-markup"  "No inline markup"
+                            checkbox (mcNoQuotes mc)         "no-quotes"         "No blockquotes"
+                            checkbox (mcNoLists mc)          "no-lists"          "No lists"
+                            checkbox (mcNoExternalLinks mc)  "no-external-links" "No external links"
+                            checkbox (isNothing $ pcWrapCol pc) "no-wrapping"    "No wrapping"
 
-                H.div ! A.id "advanced" ! A.class_ "columns" ! A.style "display: none;" $ do
-                    H.div ! A.class_ "column" $ do
-                        checkbox (mcNoHeaders mc)        "no-headers"        "No headers"
-                        checkbox (mcNoCode mc)           "no-code"           "No code snippets"
-                        checkbox (mcNoInlineMarkup mc)   "no-inline-markup"  "No inline markup"
-                        checkbox (mcNoQuotes mc)         "no-quotes"         "No blockquotes"
-                        checkbox (mcNoLists mc)          "no-lists"          "No lists"
-                        checkbox (mcNoExternalLinks mc)  "no-external-links" "No external links"
-                        checkbox (isNothing $ pcWrapCol pc) "no-wrapping"    "No wrapping"
+                        H.div ! A.class_ "column" $ do
+                            checkbox (mcUnderlineHeaders mc) "underline-headers" "Underlined headers"
+                            checkbox (mcReferenceLinks mc)   "reference-links"   "Reference-style links"
 
-                    H.div ! A.class_ "column" $ do
-                        checkbox (mcUnderlineHeaders mc) "underline-headers" "Underlined headers"
-                        checkbox (mcReferenceLinks mc)   "reference-links"   "Reference-style links"
-
-                        checkbox (mcUnderscoreEm mc)     "underscore-em"     $ (H.code "_" <> "-style em")
-                        checkbox (mcUnderscoreStrong mc) "underscore-strong" $ (H.code "__" <> "-style strong text")
-                        checkbox (mcFencedCodeBlocks mc) "fenced-code-blocks" $ (H.code "```" <> "-style code blocks")
-                        H.input ! A.type_ "text" ! A.size "2"
-                            ! A.name "num-blocks" ! A.id "num-blocks"
-                            ! A.class_ "small"
-                        H.label ! A.for "num-blocks" ! A.class_ "input-label"
-                            $ "Number of blocks"
+                            checkbox (mcUnderscoreEm mc)     "underscore-em"     $ (H.code "_" <> "-style em")
+                            checkbox (mcUnderscoreStrong mc) "underscore-strong" $ (H.code "__" <> "-style strong text")
+                            checkbox (mcFencedCodeBlocks mc) "fenced-code-blocks" $ (H.code "```" <> "-style code blocks")
+                            H.input ! A.type_ "text" ! A.size "2"
+                                ! A.name "num-blocks" ! A.id "num-blocks"
+                                ! A.class_ "small"
+                            H.label ! A.for "num-blocks" ! A.class_ "input-label"
+                                $ "Number of blocks"
 
                 checkbox False "show-advanced" "Advanced settings"
                 " "
@@ -97,7 +97,8 @@ index pc mc markdown = H.docTypeHtml $ do
         H.hr
         H.div ! A.id "results" $ do
             H.div ! A.id "loading" ! A.style "display: none;" $ "⌛"
-            H.div ! A.id "markdown-html" $ markdownHtml pc mc markdown
+            H.div ! A.id "markdown-html" ! A.class_ "slider" $
+                markdownHtml pc mc markdown
   where
     loremIpsumUrl  = "http://www.lipsum.com/"
     markdownUrl    = "http://daringfireball.net/projects/markdown/"

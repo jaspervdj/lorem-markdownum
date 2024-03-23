@@ -12,7 +12,11 @@ document.addEventListener("DOMContentLoaded", function() {
     const advancedToggle = document.getElementById("show-advanced");
     function pokeAdvanced() {
         const advanced = document.getElementById("advanced");
-        advanced.style.display = advancedToggle.checked ? "flex" : "none";
+        if (advancedToggle.checked) {
+            advanced.style.height = advanced.scrollHeight + "px";
+        } else {
+            advanced.style.height = "0px";
+        }
     };
     advancedToggle.addEventListener("change", pokeAdvanced);
     pokeAdvanced();
@@ -27,6 +31,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const dst = document.getElementById("markdown-html");
         const loading = document.getElementById("loading");
         dst.style.display = "none";
+        dst.style.height = "0px";
         loading.style.display = "block";
 
         const inputIds = [
@@ -67,6 +72,7 @@ document.addEventListener("DOMContentLoaded", function() {
             dst.innerHTML = request.responseText;
             pokePreviewHtml();
             dst.style.display = "block";
+            dst.style.height = dst.scrollHeight + "px";
             loading.style.display = "none";
         });
         request.open("GET", url);

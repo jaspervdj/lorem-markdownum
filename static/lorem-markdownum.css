@@ -38,7 +38,7 @@ div#info a {
     color: #222;
 }
 
-div#controls div#advanced {
+div#advanced div.columns {
     margin-bottom: 24px;
 }
 
@@ -106,4 +106,9 @@ blockquote {
     border-left: solid #777 2px;
     margin-left: 12px;
     padding-left: 12px;
+}
+
+.slider {
+    transition: height 1s;
+    overflow-y: hidden;
 }
