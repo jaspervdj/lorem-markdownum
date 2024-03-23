@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 }
             } else if (input.type === "text") {
                 if (input.value.length > 0) {
-                    query[name] = input.value;
+                    query[input.name] = input.value;
                 }
             }
         }
