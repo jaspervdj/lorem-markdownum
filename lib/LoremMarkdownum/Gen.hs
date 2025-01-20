@@ -6,6 +6,9 @@ module LoremMarkdownum.Gen
     , GenIO
     , runGenIO
 
+    , GenPure
+    , runGenPure
+
     , randomBool
 
     , oneOf
@@ -24,18 +27,20 @@ module LoremMarkdownum.Gen
 
 
 --------------------------------------------------------------------------------
-import           Control.Monad        (join)
-import           Control.Monad.Reader (ReaderT, ask, local, mapReaderT,
-                                       runReaderT)
-import           Control.Monad.State  (StateT, get, put, runStateT)
-import           Control.Monad.Trans  (lift)
-import           Data.Tuple           (swap)
-import           System.Random        (randomRIO)
+import           Control.Monad                 (join)
+import           Control.Monad.Reader          (ReaderT, ask, local, mapReaderT,
+                                                runReaderT)
+import           Control.Monad.State           (State, StateT, evalState, get,
+                                                put, runStateT, state)
+import           Control.Monad.Trans           (lift)
+import           Data.Tuple                    (swap)
+import           System.Random                 (StdGen, mkStdGen, randomR,
+                                                randomRIO)
 
 
 --------------------------------------------------------------------------------
-import           LoremMarkdownum.FrequencyTree   (FrequencyTree)
-import qualified LoremMarkdownum.FrequencyTree   as FT
+import           LoremMarkdownum.FrequencyTree (FrequencyTree)
+import qualified LoremMarkdownum.FrequencyTree as FT
 
 
 --------------------------------------------------------------------------------
@@ -79,6 +84,23 @@ instance MonadGen GenIO where
 --------------------------------------------------------------------------------
 runGenIO :: GenIO a -> IO a
 runGenIO gio = runReaderT (unGenIO gio) 0
+
+
+--------------------------------------------------------------------------------
+newtype GenPure a = GenPure {unGenPure :: ReaderT Int (State StdGen) a}
+    deriving (Applicative, Functor, Monad)
+
+
+--------------------------------------------------------------------------------
+instance MonadGen GenPure where
+    randomInt r = GenPure $ state $ \g -> randomR r g
+    depth       = GenPure ask
+    withDepth d = GenPure . local (const d) . unGenPure
+
+
+--------------------------------------------------------------------------------
+runGenPure :: GenPure a -> Int -> a
+runGenPure m seed = evalState (runReaderT (unGenPure m) 0) (mkStdGen seed)
 
 
 --------------------------------------------------------------------------------

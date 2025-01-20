@@ -9,7 +9,6 @@ module LoremMarkdownum.Web.Views
 
 --------------------------------------------------------------------------------
 import           Data.Maybe                   (isNothing)
-import           Data.Monoid                  ((<>))
 import           Data.Text                    (Text)
 import           Text.Blaze.Html5             (Html, (!))
 import qualified Text.Blaze.Html5             as H
@@ -81,6 +80,12 @@ index pc mc markdown = H.docTypeHtml $ do
                                 ! A.class_ "small"
                             H.label ! A.for "num-blocks" ! A.class_ "input-label"
                                 $ "Number of blocks"
+                            H.br
+                            H.input ! A.type_ "text" ! A.size "2"
+                                ! A.name "seed" ! A.id "seed"
+                                ! A.class_ "small"
+                            H.label ! A.for "seed" ! A.class_ "input-label"
+                                $ "Seed"
 
                 checkbox False "show-advanced" "Advanced settings"
                 " "

@@ -40,7 +40,6 @@ import           Data.List                     (intersperse)
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as M
 import           Data.Maybe                    (maybeToList)
-import           Data.Monoid                   ((<>))
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
 import           Text.Blaze.Html5              (Html, (!))
@@ -77,6 +76,7 @@ data MarkdownConfig = MarkdownConfig
     , mcHeaderDepth      :: Int
     , mcNoExternalLinks  :: Bool
     , mcFencedCodeBlocks :: Bool
+    , mcSeed             :: Maybe Int
     } deriving (Show)
 
 
@@ -87,6 +87,7 @@ mkDefaultMarkdownConfig :: Markov (Token Int)
                         -> MarkdownConfig
 mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
     False False False False False False False False False Nothing 2 False False
+    Nothing
 
 
 --------------------------------------------------------------------------------

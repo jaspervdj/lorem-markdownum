@@ -113,10 +113,9 @@ index = do
 --------------------------------------------------------------------------------
 markdown :: AppM ()
 markdown = do
-    (_, markdownState) <- ask
-    mc                 <- getMarkdownConfig
-    pc                 <- getPrintConfig
-    m <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
+    mc <- getMarkdownConfig
+    pc <- getPrintConfig
+    m  <- appGenMarkdown
     Snap.modifyResponse $ Snap.setContentType "text/plain"
 
     -- This allows the resource to be fetched using the Fetch API.
@@ -128,11 +127,22 @@ markdown = do
 --------------------------------------------------------------------------------
 markdownHtml :: AppM ()
 markdownHtml = do
+    mc <- getMarkdownConfig
+    pc <- getPrintConfig
+    m  <- appGenMarkdown
+    Snap.blaze $ Views.markdownHtml pc mc m
+
+
+--------------------------------------------------------------------------------
+appGenMarkdown :: AppM Markdown
+appGenMarkdown = do
     (_, markdownState) <- ask
     mc                 <- getMarkdownConfig
-    pc                 <- getPrintConfig
-    m <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
-    Snap.blaze $ Views.markdownHtml pc mc m
+    case mcSeed mc of
+        Just seed -> pure $ runGenPure
+            (runMarkdownGen genMarkdown mc markdownState) seed
+        Nothing -> liftIO $ runGenIO $
+            runMarkdownGen genMarkdown mc markdownState
 
 
 --------------------------------------------------------------------------------
@@ -173,6 +183,7 @@ getMarkdownConfig = do
     underscoreStrong <- getBoolParam "underscore-strong"
     numBlocks        <- getIntParam  "num-blocks"
     fencedCodeBlocks <- getBoolParam "fenced-code-blocks"
+    seed             <- getIntParam  "seed"
     return mc
         { mcNoHeaders        = noHeaders
         , mcNoCode           = noCode
@@ -186,6 +197,7 @@ getMarkdownConfig = do
         , mcUnderscoreStrong = underscoreStrong
         , mcNumBlocks        = fmap (max 1 . min 50) numBlocks
         , mcFencedCodeBlocks = fencedCodeBlocks
+        , mcSeed             = seed
         }
 
 

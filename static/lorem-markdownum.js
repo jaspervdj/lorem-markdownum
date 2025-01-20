@@ -47,7 +47,8 @@ document.addEventListener("DOMContentLoaded", function() {
             "underscore-strong",
             "num-blocks",
             "no-wrapping",
-            "fenced-code-blocks"
+            "fenced-code-blocks",
+            "seed"
         ];
 
         // Form processing
