@@ -3,12 +3,11 @@
 
 
 --------------------------------------------------------------------------------
-import           Control.Monad.Reader          (ReaderT, ask, runReaderT)
+import           Control.Monad.Reader          (ReaderT, ask, runReaderT, local)
 import           Control.Monad.Trans           (liftIO)
 import           Data.ByteString               (ByteString)
 import qualified Data.ByteString.Char8         as BC
 import           Data.Maybe                    (fromMaybe)
-import qualified Data.Text                     as T
 import qualified Snap.Blaze                    as Snap
 import qualified Snap.Core                     as Snap
 import           Snap.Core                     (Snap)
@@ -20,14 +19,10 @@ import qualified System.IO                     as IO
 
 
 --------------------------------------------------------------------------------
-import qualified LoremMarkdownum.FrequencyTree as FT
+import           LoremMarkdownum.App
 import           LoremMarkdownum.Gen
-import           LoremMarkdownum.Gen.Code
 import           LoremMarkdownum.Gen.Markdown
-import qualified LoremMarkdownum.Markov        as Markov
 import           LoremMarkdownum.Print
-import           LoremMarkdownum.Token
-import           LoremMarkdownum.Token.Parse
 import qualified LoremMarkdownum.Web.Views     as Views
 
 
@@ -50,30 +45,7 @@ configFromEnv = Config
 
 
 --------------------------------------------------------------------------------
-type AppEnv = (MarkdownConfig, MarkdownState)
-
-
---------------------------------------------------------------------------------
 type AppM a = ReaderT AppEnv Snap a
-
-
---------------------------------------------------------------------------------
-readDataFiles :: Config -> IO AppEnv
-readDataFiles config = do
-    techspeak     <- concat <$> streamsFromDir (cDataDir config </> "techspeak")
-    metamorphoses <- streamsFromDir (cDataDir config </> "metamorphoses")
-    let codeFreqTree  = FT.fromList $ map T.toLower $ streamElements techspeak
-        wordFrequency = wordFrequencyTreePerLength $ concat metamorphoses
-        tokenQueue    = [Element "lorem", Element "markdownum"]
-        lengthMarkov  =
-            Markov.optimize $ foldr (Markov.feed 2) Markov.empty $
-            fmap (fmap (fmap T.length)) metamorphoses
-
-        codeConfig     = CodeConfig codeFreqTree
-        markdownState  = MarkdownState tokenQueue
-        markdownConfig =
-                mkDefaultMarkdownConfig lengthMarkov wordFrequency codeConfig
-    return (markdownConfig, markdownState)
 
 
 --------------------------------------------------------------------------------
@@ -86,7 +58,7 @@ main = do
             Snap.setAccessLog (Snap.ConfigIoLog $ BC.hPutStrLn IO.stderr) $
             Snap.setErrorLog (Snap.ConfigIoLog $ BC.hPutStrLn IO.stderr) $
             Snap.defaultConfig
-    appEnv <- readDataFiles config
+    appEnv <- readDataFiles (cDataDir config)
     Snap.httpServe snapConfig $ runReaderT (app config) appEnv
 
 
@@ -127,22 +99,11 @@ markdown = do
 --------------------------------------------------------------------------------
 markdownHtml :: AppM ()
 markdownHtml = do
-    mc <- getMarkdownConfig
-    pc <- getPrintConfig
-    m  <- appGenMarkdown
-    Snap.blaze $ Views.markdownHtml pc mc m
-
-
---------------------------------------------------------------------------------
-appGenMarkdown :: AppM Markdown
-appGenMarkdown = do
     (_, markdownState) <- ask
     mc                 <- getMarkdownConfig
-    case mcSeed mc of
-        Just seed -> pure $ runGenPure
-            (runMarkdownGen genMarkdown mc markdownState) seed
-        Nothing -> liftIO $ runGenIO $
-            runMarkdownGen genMarkdown mc markdownState
+    pc                 <- getPrintConfig
+    m                  <- local (\_ -> (mc, markdownState)) appGenMarkdown
+    Snap.blaze $ Views.markdownHtml pc mc m
 
 
 --------------------------------------------------------------------------------

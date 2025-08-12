@@ -16,6 +16,7 @@ Library
   Ghc-options:    -Wall
 
   Exposed-modules:
+    LoremMarkdownum.App
     LoremMarkdownum.FrequencyTree
     LoremMarkdownum.Gen
     LoremMarkdownum.Gen.Code
@@ -28,15 +29,15 @@ Library
     LoremMarkdownum.Trie
 
   Build-depends:
-    base        >= 4    && < 5,
-    blaze-html  >= 0.6  && < 0.10,
-    bytestring  >= 0.9  && < 0.13,
-    containers  >= 0.5  && < 0.7,
-    directory   >= 1.1  && < 1.4,
-    filepath    >= 1.3  && < 1.5,
-    mtl         >= 2.1  && < 2.4,
-    random      >= 1.0  && < 1.3,
-    text        >= 0.11 && < 2.2
+    base       >= 4    && < 5,
+    blaze-html >= 0.6  && < 0.10,
+    bytestring >= 0.9  && < 0.13,
+    containers >= 0.5  && < 0.7,
+    directory  >= 1.1  && < 1.4,
+    filepath   >= 1.3  && < 1.5,
+    mtl        >= 2.1  && < 2.4,
+    random     >= 1.0  && < 1.3,
+    text       >= 0.11 && < 2.2
 
 Executable lorem-markdownum-web
   Hs-source-dirs: src
@@ -48,13 +49,23 @@ Executable lorem-markdownum-web
 
   Build-depends:
     lorem-markdownum,
-    base             >= 4    && < 5,
-    blaze-html       >= 0.6  && < 0.10,
-    bytestring       >= 0.9  && < 0.13,
-    filepath         >= 1.4  && < 1.5,
-    mtl              >= 2.1  && < 2.4,
-    random           >= 1.0  && < 1.3,
-    snap-blaze       >= 0.2  && < 0.3,
-    snap-core        >= 0.9  && < 1.1,
-    snap-server      >= 0.9  && < 1.2,
-    text             >= 0.11 && < 2.2
+    base        >= 4    && < 5,
+    blaze-html  >= 0.6  && < 0.10,
+    bytestring  >= 0.9  && < 0.13,
+    filepath    >= 1.4  && < 1.5,
+    mtl         >= 2.1  && < 2.4,
+    random      >= 1.0  && < 1.3,
+    snap-blaze  >= 0.2  && < 0.3,
+    snap-core   >= 0.9  && < 1.1,
+    snap-server >= 0.9  && < 1.2,
+    text        >= 0.11 && < 2.2
+
+Executable lorem-markdownum-cli
+  Hs-source-dirs: src
+  Main-is:        LoremMarkdownum/CLI.hs
+
+  Build-depends:
+    lorem-markdownum,
+    base >= 4    && < 5,
+    mtl  >= 2.1  && < 2.4,
+    text >= 0.11 && < 2.2
