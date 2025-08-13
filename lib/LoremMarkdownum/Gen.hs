@@ -164,7 +164,7 @@ shuffle list
 
 --------------------------------------------------------------------------------
 partitionNicely :: MonadGen m => Int -> Int -> m [Int]
-partitionNicely nGroups total = shuffle $ filter (> 0) $
+partitionNicely nGroups total = pure $ filter (> 0) $
     let (x, remainder) = total `divMod` nGroups
     in replicate remainder (x + 1) ++ replicate (nGroups - remainder) x
 

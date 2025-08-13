@@ -1,5 +1,6 @@
 --------------------------------------------------------------------------------
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module LoremMarkdownum.Gen.Markdown
     ( MarkdownConfig (..)
     , mkDefaultMarkdownConfig
@@ -34,7 +35,7 @@ module LoremMarkdownum.Gen.Markdown
 
 --------------------------------------------------------------------------------
 import           Control.Monad                 (forM, forM_, replicateM, when)
-import           Control.Monad.Reader          (ReaderT, ask, runReaderT, asks)
+import           Control.Monad.Reader          (ReaderT, ask, asks, runReaderT)
 import           Control.Monad.State           (StateT, evalStateT, get, modify)
 import           Data.List                     (intersperse)
 import           Data.Map.Strict               (Map)
@@ -42,8 +43,8 @@ import qualified Data.Map.Strict               as M
 import           Data.Maybe                    (maybeToList)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
-import           Text.Blaze.Html5              (Html, (!))
 import qualified Text.Blaze.Html5              as H
+import           Text.Blaze.Html5              (Html, (!))
 import qualified Text.Blaze.Html5.Attributes   as A
 
 
@@ -104,6 +105,41 @@ type MarkdownGen m a = ReaderT MarkdownConfig (StateT MarkdownState m) a
 runMarkdownGen :: MonadGen m
                => MarkdownGen m a -> MarkdownConfig -> MarkdownState -> m a
 runMarkdownGen mg mc = evalStateT (runReaderT mg mc)
+
+
+--------------------------------------------------------------------------------
+data Skeleton title block =
+    Skeleton title (Either [block] [Skeleton title block])
+
+
+--------------------------------------------------------------------------------
+instance (Show title, Show block) => Show (Skeleton title block) where
+    show = unlines . go
+      where
+        indent = map ("  " ++)
+        go (Skeleton t bs) =
+            [show t] ++
+            indent (either (map show) (concatMap go) bs) ++
+            []
+
+
+-- Deepen:
+-- - is it 4 items or more?
+-- - is maxDepth ok?
+-- - cut in to two up four
+
+genSkeleton :: forall m. MonadGen m => MarkdownGen m (Skeleton () ())
+genSkeleton = do
+    numBlocks <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
+    go numBlocks
+  where
+    go :: Int -> MarkdownGen m (Skeleton () ())
+    go numBlocks
+        | numBlocks < 4 = pure $ Skeleton () $ Left $ replicate numBlocks ()
+        | otherwise = do
+            numSections <- randomInt (2, max 3 (numBlocks `div` 2 + 1))
+            partitioning <- partitionNicely numSections numBlocks
+            Skeleton () . Right <$> forM partitioning go
 
 
 --------------------------------------------------------------------------------
@@ -176,10 +212,13 @@ genMarkdown = do
         h2      <- HeaderB <$> genHeader 2
         return $ h2 : section
 
+    skeleton <- genSkeleton
+
     h1      <- HeaderB    <$> genHeader 1
     lastPar <- ParagraphB <$> genParagraph
     return $ (if noHeaders then removeHeaders else id) $
-        [h1] ++ concat blocks ++ [lastPar]
+        [h1] ++ concat blocks ++ [lastPar] ++
+        [ParagraphB [[Element $ PlainM $ T.pack $ show skeleton]]]
   where
     removeHeaders = filter (\b -> case b of HeaderB _ -> False; _ -> True)
 
@@ -190,7 +229,7 @@ genSection numBlocks headerDepth maxHDepth
     | numBlocks <= 0 = return []
     | otherwise      = do
         par0    <- ParagraphB <$> genParagraph
-        subHead <- (&& numBlocks > 2) . (&& headerDepth <= maxHDepth) <$> randomBool maxHDepth headerDepth 
+        subHead <- (&& numBlocks > 2) . (&& headerDepth <= maxHDepth) <$> randomBool maxHDepth headerDepth
         special <- (&& numBlocks > 1) <$> randomBool 3 1
         pars    <- case (subHead, special) of
                         (True, _) -> ((:) . HeaderB <$> genHeader headerDepth) <*>
