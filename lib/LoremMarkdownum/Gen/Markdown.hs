@@ -1,5 +1,6 @@
 --------------------------------------------------------------------------------
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module LoremMarkdownum.Gen.Markdown
     ( MarkdownConfig (..)
     , mkDefaultMarkdownConfig
@@ -13,7 +14,6 @@ module LoremMarkdownum.Gen.Markdown
     , Sentence
 
     , genMarkdown
-    , genSection
     , genParagraph
     , genOrderedList
     , genUnorderedList
@@ -34,16 +34,19 @@ module LoremMarkdownum.Gen.Markdown
 
 --------------------------------------------------------------------------------
 import           Control.Monad                 (forM, forM_, replicateM, when)
-import           Control.Monad.Reader          (ReaderT, ask, runReaderT, asks)
+import           Control.Monad.Reader          (ReaderT, ask, asks, runReaderT)
 import           Control.Monad.State           (StateT, evalStateT, get, modify)
+import           Data.Bifunctor                (bimap)
+import           Data.Bitraversable            (bitraverse)
 import           Data.List                     (intersperse)
 import           Data.Map.Strict               (Map)
 import qualified Data.Map.Strict               as M
 import           Data.Maybe                    (maybeToList)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
-import           Text.Blaze.Html5              (Html, (!))
+import           Data.Traversable              (for)
 import qualified Text.Blaze.Html5              as H
+import           Text.Blaze.Html5              (Html, (!))
 import qualified Text.Blaze.Html5.Attributes   as A
 
 
@@ -73,7 +76,6 @@ data MarkdownConfig = MarkdownConfig
     , mcUnderscoreEm     :: Bool
     , mcUnderscoreStrong :: Bool
     , mcNumBlocks        :: Maybe Int
-    , mcHeaderDepth      :: Int
     , mcNoExternalLinks  :: Bool
     , mcFencedCodeBlocks :: Bool
     , mcSeed             :: Maybe Int
@@ -86,7 +88,7 @@ mkDefaultMarkdownConfig :: Markov (Token Int)
                         -> CodeConfig
                         -> MarkdownConfig
 mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
-    False False False False False False False False False Nothing 2 False False
+    False False False False False False False False False Nothing False False
     Nothing
 
 
@@ -104,6 +106,62 @@ type MarkdownGen m a = ReaderT MarkdownConfig (StateT MarkdownState m) a
 runMarkdownGen :: MonadGen m
                => MarkdownGen m a -> MarkdownConfig -> MarkdownState -> m a
 runMarkdownGen mg mc = evalStateT (runReaderT mg mc)
+
+
+--------------------------------------------------------------------------------
+data Skeleton title block =
+    Skeleton title (Either [block] [Skeleton title block])
+
+
+--------------------------------------------------------------------------------
+instance Functor (Skeleton title) where
+    fmap f (Skeleton t b) = Skeleton t $ bimap (map f) (map (fmap f)) b
+
+
+--------------------------------------------------------------------------------
+instance Foldable (Skeleton title) where
+    foldMap f (Skeleton _ b) = either (foldMap f) (foldMap (foldMap f)) b
+
+
+--------------------------------------------------------------------------------
+instance Traversable (Skeleton title) where
+    traverse f (Skeleton t b) =
+        Skeleton t <$> bitraverse (traverse f) (traverse (traverse f)) b
+
+
+--------------------------------------------------------------------------------
+instance (Show title, Show block) => Show (Skeleton title block) where
+    show = unlines . go
+      where
+        indent = map ("  " ++)
+        go (Skeleton t bs) =
+            [show t] ++
+            indent (either (map show) (concatMap go) bs) ++
+            []
+
+
+--------------------------------------------------------------------------------
+-- | Generates a rough plan for what the document should look like.
+genSkeleton
+    :: forall m title block. MonadGen m
+    => (MarkdownGen m title)
+    -> (Int -> MarkdownGen m [block])
+    -> Int
+    -> MarkdownGen m (Skeleton title block)
+genSkeleton genTitle genBlocks = go 1
+  where
+    go :: Int -> Int -> MarkdownGen m (Skeleton title block)
+    go lvl numBlocks = do
+        title <- genTitle
+        numSections <- randomInt (1, max 3 (numBlocks `div` 2 + 1))
+        if numSections == 1 || numBlocks < 4 || lvl >= 6
+            then do
+                blocks <- genBlocks numBlocks
+                pure $ Skeleton title $ Left blocks
+            else do
+                partitioning <- partitionNicely numSections numBlocks
+                children <- forM partitioning (go (lvl + 1))
+                pure $ Skeleton title $ Right children
 
 
 --------------------------------------------------------------------------------
@@ -153,6 +211,17 @@ data Markup
 
 
 --------------------------------------------------------------------------------
+skeletonToMarkdown :: Skeleton PlainPhrase Block -> Markdown
+skeletonToMarkdown = go 1
+  where
+    go lvl (Skeleton title body) =
+        [HeaderB $ Header lvl title] ++
+        case body of
+            Left blocks -> blocks
+            Right children -> concatMap (go (lvl + 1)) children
+
+
+--------------------------------------------------------------------------------
 markdownLinks :: Markdown -> [(Stream Markup, Text)]
 markdownLinks = M.toList . M.fromList . concatMap blockLinks
   where
@@ -166,39 +235,25 @@ markdownLinks = M.toList . M.fromList . concatMap blockLinks
 --------------------------------------------------------------------------------
 genMarkdown :: MonadGen m => MarkdownGen m Markdown
 genMarkdown = do
-    noHeaders     <- asks mcNoHeaders
-    maxHDepth     <- asks mcHeaderDepth
-    numBlocks     <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
-    numSections   <- randomInt (2, max 3 (numBlocks `div` 2 + 1))
-    partitioning  <- partitionNicely numSections (numBlocks - 1)
-    blocks        <- forM partitioning $ \numBlocksInSection -> do
-        section <- genSection numBlocksInSection 3 maxHDepth
-        h2      <- HeaderB <$> genHeader 2
-        return $ h2 : section
+    numBlocks <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
+    skeleton <- genSkeleton genPlainPhrase genSpecialBlocksPlan numBlocks
 
-    h1      <- HeaderB    <$> genHeader 1
-    lastPar <- ParagraphB <$> genParagraph
+    hollow <- for skeleton $ \special ->
+        if special then genSpecialBlock else ParagraphB <$> genParagraph
+
+    noHeaders <- asks mcNoHeaders
     return $ (if noHeaders then removeHeaders else id) $
-        [h1] ++ concat blocks ++ [lastPar]
+        skeletonToMarkdown hollow
   where
     removeHeaders = filter (\b -> case b of HeaderB _ -> False; _ -> True)
 
-
---------------------------------------------------------------------------------
-genSection :: MonadGen m => Int -> Int -> Int -> MarkdownGen m [Block]
-genSection numBlocks headerDepth maxHDepth
-    | numBlocks <= 0 = return []
-    | otherwise      = do
-        par0    <- ParagraphB <$> genParagraph
-        subHead <- (&& numBlocks > 2) . (&& headerDepth <= maxHDepth) <$> randomBool maxHDepth headerDepth 
-        special <- (&& numBlocks > 1) <$> randomBool 3 1
-        pars    <- case (subHead, special) of
-                        (True, _) -> ((:) . HeaderB <$> genHeader headerDepth) <*>
-                                     (return . ParagraphB <$> genParagraph)
-                        (_, True) -> return <$> genSpecialBlock
-                        _         -> return []
-        let hDepth = if subHead then headerDepth + 1 else headerDepth
-        ((par0 : pars) ++) <$> genSection (numBlocks - 1 - length pars) hDepth maxHDepth
+    -- Sprinkle special blocks in between normal blocks.
+    genSpecialBlocksPlan n
+        | n <= 0    = pure []
+        | n == 1    = pure [False]
+        | otherwise = do
+            special <- randomBool 3 1
+            ([False, special] ++) <$> genSpecialBlocksPlan (n - 2)
 
 
 --------------------------------------------------------------------------------
@@ -221,11 +276,6 @@ genSpecialBlock = do
     genCodeBlock = do
         codeConfig <- mcCodeConfig <$> ask
         depth0 (runCodeGen genCode codeConfig)
-
-
---------------------------------------------------------------------------------
-genHeader :: MonadGen m => Int -> MarkdownGen m Header
-genHeader n = Header n <$> genPlainPhrase
 
 
 --------------------------------------------------------------------------------
