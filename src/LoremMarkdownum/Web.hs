@@ -85,9 +85,10 @@ index = do
 --------------------------------------------------------------------------------
 markdown :: AppM ()
 markdown = do
-    mc <- getMarkdownConfig
-    pc <- getPrintConfig
-    m  <- appGenMarkdown
+    (_, markdownState) <- ask
+    mc                 <- getMarkdownConfig
+    pc                 <- getPrintConfig
+    m                  <- local (\_-> (mc, markdownState)) appGenMarkdown
     Snap.modifyResponse $ Snap.setContentType "text/plain"
 
     -- This allows the resource to be fetched using the Fetch API.

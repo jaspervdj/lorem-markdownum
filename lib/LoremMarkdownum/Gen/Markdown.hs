@@ -238,6 +238,7 @@ genMarkdown = do
     -- So we can start with the right words, lorem lipsum.
     p1 <- ParagraphB <$> genParagraph
 
+    conf <- ask
     numBlocks <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
     skeleton <- genSkeleton genPlainPhrase genSpecialBlocksPlan numBlocks
 
