@@ -65,7 +65,6 @@ index pc mc markdown = H.docTypeHtml $ do
                             checkbox (mcNoInlineMarkup mc)   "no-inline-markup"  "No inline markup"
                             checkbox (mcNoQuotes mc)         "no-quotes"         "No blockquotes"
                             checkbox (mcNoLists mc)          "no-lists"          "No lists"
-                            checkbox (mcNoExternalLinks mc)  "no-external-links" "No external links"
                             checkbox (isNothing $ pcWrapCol pc) "no-wrapping"    "No wrapping"
 
                         H.div ! A.class_ "column" $ do

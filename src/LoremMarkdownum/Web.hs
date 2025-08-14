@@ -139,7 +139,6 @@ getMarkdownConfig = do
     noLists          <- getBoolParam "no-lists"
     noInlineMarkup   <- getBoolParam "no-inline-markup"
     referenceLinks   <- getBoolParam "reference-links"
-    noExternalLinks  <- getBoolParam "no-external-links"
     underlineHeaders <- getBoolParam "underline-headers"
     underscoreEm     <- getBoolParam "underscore-em"
     underscoreStrong <- getBoolParam "underscore-strong"
@@ -153,7 +152,6 @@ getMarkdownConfig = do
         , mcNoLists          = noLists
         , mcNoInlineMarkup   = noInlineMarkup
         , mcReferenceLinks   = referenceLinks
-        , mcNoExternalLinks  = noExternalLinks
         , mcUnderlineHeaders = underlineHeaders
         , mcUnderscoreEm     = underscoreEm
         , mcUnderscoreStrong = underscoreStrong

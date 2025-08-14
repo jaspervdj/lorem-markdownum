@@ -34,9 +34,11 @@ module LoremMarkdownum.Gen.Markdown
 
 --------------------------------------------------------------------------------
 import           Control.Monad                 (forM, forM_, replicateM, when)
-import           Control.Monad.Reader          (ReaderT, ask, asks, runReaderT)
+import           Control.Monad.Reader          (ReaderT, ask, asks, local,
+                                                runReaderT)
 import           Control.Monad.State           (StateT, evalStateT, get, modify)
-import           Data.Bifunctor                (bimap)
+import           Data.Bifoldable               (Bifoldable (..), biconcatMap)
+import           Data.Bifunctor                (Bifunctor (..))
 import           Data.Bitraversable            (bitraverse)
 import           Data.List                     (intersperse)
 import           Data.Map.Strict               (Map)
@@ -76,7 +78,7 @@ data MarkdownConfig = MarkdownConfig
     , mcUnderscoreEm     :: Bool
     , mcUnderscoreStrong :: Bool
     , mcNumBlocks        :: Maybe Int
-    , mcNoExternalLinks  :: Bool
+    , mcInternalLinks    :: [T.Text]
     , mcFencedCodeBlocks :: Bool
     , mcSeed             :: Maybe Int
     } deriving (Show)
@@ -88,7 +90,7 @@ mkDefaultMarkdownConfig :: Markov (Token Int)
                         -> CodeConfig
                         -> MarkdownConfig
 mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
-    False False False False False False False False False Nothing False False
+    False False False False False False False False False Nothing [] False
     Nothing
 
 
@@ -111,6 +113,7 @@ runMarkdownGen mg mc = evalStateT (runReaderT mg mc)
 --------------------------------------------------------------------------------
 data Skeleton title block =
     Skeleton title (Either [block] [Skeleton title block])
+    deriving (Show)
 
 
 --------------------------------------------------------------------------------
@@ -130,14 +133,15 @@ instance Traversable (Skeleton title) where
 
 
 --------------------------------------------------------------------------------
-instance (Show title, Show block) => Show (Skeleton title block) where
-    show = unlines . go
-      where
-        indent = map ("  " ++)
-        go (Skeleton t bs) =
-            [show t] ++
-            indent (either (map show) (concatMap go) bs) ++
-            []
+instance Bifunctor Skeleton where
+    bimap f g (Skeleton t b) =
+        Skeleton (f t) $ bimap (map g) (map (bimap f g)) b
+
+
+--------------------------------------------------------------------------------
+instance Bifoldable Skeleton where
+    bifoldMap f g (Skeleton t b) =
+        f t <> either (foldMap g) (foldMap (bifoldMap f g)) b
 
 
 --------------------------------------------------------------------------------
@@ -170,7 +174,7 @@ type Markdown = [Block]
 
 --------------------------------------------------------------------------------
 data Block
-    = HeaderB Header
+    = HeaderB Int Header
     | ParagraphB Paragraph
     | OrderedListB [Phrase]
     | UnorderedListB [Phrase]
@@ -180,7 +184,7 @@ data Block
 
 
 --------------------------------------------------------------------------------
-data Header = Header Int PlainPhrase deriving (Show)
+data Header = Header PlainPhrase deriving (Show)
 
 
 --------------------------------------------------------------------------------
@@ -211,11 +215,11 @@ data Markup
 
 
 --------------------------------------------------------------------------------
-skeletonToMarkdown :: Skeleton PlainPhrase Block -> Markdown
+skeletonToMarkdown :: Skeleton Header Block -> Markdown
 skeletonToMarkdown = go 1
   where
     go lvl (Skeleton title body) =
-        [HeaderB $ Header lvl title] ++
+        [HeaderB lvl title] ++
         case body of
             Left blocks    -> blocks
             Right children -> concatMap (go (lvl + 1)) children
@@ -238,23 +242,26 @@ genMarkdown = do
     -- So we can start with the right words, lorem lipsum.
     p1 <- ParagraphB <$> genParagraph
 
-    conf <- ask
     numBlocks <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
-    skeleton <- genSkeleton genPlainPhrase genSpecialBlocksPlan numBlocks
+    skeleton <- genSkeleton
+        (Header <$> genPlainPhrase) genSpecialBlocksPlan numBlocks
 
-    (_, hollow) <- mapAccumM
-        (\isFirst isSpecial -> fmap ((,) False) $ case (isFirst, isSpecial) of
-            (True, _)  -> pure p1
-            (_, True)  -> genSpecialBlock
-            (_, False) -> ParagraphB <$> genParagraph)
-        True
-        skeleton
+    let internalLinks = map ("#" <>) $ map headerID $
+            biconcatMap pure (const []) skeleton
+    (_, hollow) <- local (\mc -> mc {mcInternalLinks = internalLinks }) $
+        mapAccumM
+            (\isFirst special -> fmap ((,) False) $ case (isFirst, special) of
+                (True, _)  -> pure p1
+                (_, True)  -> genSpecialBlock
+                (_, False) -> ParagraphB <$> genParagraph)
+            True
+            skeleton
 
     noHeaders <- asks mcNoHeaders
     return $ (if noHeaders then removeHeaders else id) $
         skeletonToMarkdown hollow
   where
-    removeHeaders = filter (\b -> case b of HeaderB _ -> False; _ -> True)
+    removeHeaders = filter (\b -> case b of HeaderB _ _ -> False; _ -> True)
 
     -- Sprinkle special blocks in between normal blocks.
     genSpecialBlocksPlan n
@@ -422,50 +429,35 @@ takeWhileMax p i (x : xs)
 
 --------------------------------------------------------------------------------
 genMarkupConstructor :: MonadGen m => Stream Markup -> MarkdownGen m Markup
-genMarkupConstructor m = oneOf
-    [ return $ ItalicM m
-    , return $ BoldM m
-    , genLink >>= \link -> return $ LinkM m link
-    ]
+genMarkupConstructor m = do
+    linker <- genLink
+    oneOf $
+        [ return $ ItalicM m
+        , return $ BoldM m
+        ] ++
+        case linker of
+            Nothing -> []
+            Just l -> pure $ do
+                link <- l
+                pure $ LinkM m link
 
 
 --------------------------------------------------------------------------------
-genLink :: MonadGen m => MarkdownGen m Text
+headerID :: Header -> T.Text
+headerID (Header plain) = T.intercalate "-" $ do
+    token <- plain
+    case token of
+        Element txt -> pure $ T.toLower txt
+        _           -> []
+
+
+--------------------------------------------------------------------------------
+genLink :: MonadGen m => MarkdownGen m (Maybe (MarkdownGen m Text))
 genLink = do
-    noExternalLinks <- asks mcNoExternalLinks
-    if noExternalLinks then genInternalLink else genExternalLink
-  where
-    genInternalLink :: MonadGen m => MarkdownGen m Text
-    genInternalLink = do
-        n         <- randomInt (1, 3)
-        linkParts <- replicateM n genLinkPart
-        return $ "#" <> T.intercalate "-" linkParts
-
-    genExternalLink :: MonadGen m => MarkdownGen m Text
-    genExternalLink = do
-        n0          <- randomInt (1, 2)
-        domainParts <- replicateM n0 genLinkPart
-        n1          <- randomInt (0, 2)
-        pathParts   <- replicateM n1 genLinkPart
-        domainPart  <- sampleFromList
-            [T.concat domainParts, T.intercalate "-" domainParts]
-        pathPart    <- sampleFromList
-            [T.concat pathParts, T.intercalate "-" pathParts]
-        www         <- sampleFromFrequencies [("", 3), ("www.", 1)]
-        tld         <- sampleFromList [".org", ".net", ".com", ".io"]
-        ext         <- if T.null pathPart
-            then return ""
-            else sampleFromFrequencies
-                    [("", 5), (".php", 1), (".html", 2), (".aspx", 1)]
-
-        return $ T.concat ["http://", www, domainPart, tld, "/", pathPart, ext]
-
-    genLinkPart :: MonadGen m => MarkdownGen m Text
-    genLinkPart = do
-        token <- genToken
-        case token of
-            Element x -> return (T.toLower x)
-            _         -> genLinkPart
+    internalLinks <- asks mcInternalLinks
+    pure $ case internalLinks of
+        []    -> Nothing
+        links -> Just $ sampleFromList links
 
 
 --------------------------------------------------------------------------------
@@ -484,7 +476,7 @@ printMarkdown mc blocks = do
 
 --------------------------------------------------------------------------------
 printBlock :: MarkdownConfig -> Block -> Print ()
-printBlock mc (HeaderB h)        = printHeader mc h
+printBlock mc (HeaderB lvl h)     = printHeader mc lvl h
 printBlock mc (ParagraphB p)     = printParagraph mc p
 printBlock mc (OrderedListB l)   = printOrderedList mc l
 printBlock mc (UnorderedListB l) = printUnorderedList mc l
@@ -499,15 +491,15 @@ printBlock mc (QuoteB p)         = printWrapIndent "> " $
 
 
 --------------------------------------------------------------------------------
-printHeader :: MarkdownConfig -> Header -> Print ()
-printHeader mc (Header i p)
-    | mcUnderlineHeaders mc && i <= 2 = do
+printHeader :: MarkdownConfig -> Int -> Header -> Print ()
+printHeader mc lvl (Header p)
+    | mcUnderlineHeaders mc && lvl <= 2 = do
         let len  = runPrintLength (printPlainPhrase p)
-            char = if i <= 1 then "=" else "-"
+            char = if lvl <= 1 then "=" else "-"
         printPlainPhrase p >> printNl
         printText (T.replicate len char) >> printNl
     | otherwise                       =
-        printText (T.replicate i "#" <> " ") >> printPlainPhrase p >> printNl
+        printText (T.replicate lvl "#" <> " ") >> printPlainPhrase p >> printNl
 
 
 --------------------------------------------------------------------------------
@@ -569,22 +561,21 @@ previewMarkdown = mconcat . map previewBlock
 
 --------------------------------------------------------------------------------
 previewBlock :: Block -> Html
-previewBlock (HeaderB h)        = previewHeader h
+previewBlock (HeaderB lvl h@(Header pf))  =
+    el H.! A.id (H.toValue $ headerID h) $ previewPlainPhrase pf
+  where
+    el = case lvl of
+        1 -> H.h1
+        2 -> H.h2
+        3 -> H.h3
+        4 -> H.h4
+        5 -> H.h5
+        _ -> H.h6
 previewBlock (ParagraphB p)     = previewParagraph p
 previewBlock (OrderedListB l)   = previewOrderedList l
 previewBlock (UnorderedListB l) = previewUnorderedList l
 previewBlock (CodeB c)          = H.pre $ H.toHtml $ runPrint $ printCode c
 previewBlock (QuoteB q)         = H.blockquote $ previewParagraph q
-
-
---------------------------------------------------------------------------------
-previewHeader :: Header -> Html
-previewHeader (Header 1 pf) = H.h1 $ previewPlainPhrase pf
-previewHeader (Header 2 pf) = H.h2 $ previewPlainPhrase pf
-previewHeader (Header 3 pf) = H.h3 $ previewPlainPhrase pf
-previewHeader (Header 4 pf) = H.h4 $ previewPlainPhrase pf
-previewHeader (Header 5 pf) = H.h5 $ previewPlainPhrase pf
-previewHeader (Header _ pf) = H.h6 $ previewPlainPhrase pf
 
 
 --------------------------------------------------------------------------------
