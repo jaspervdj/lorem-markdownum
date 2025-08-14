@@ -10,7 +10,7 @@ body {
     margin: 0px auto;
     padding: 12px;
     text-align: left;
-    max-width: 640px;
+    max-width: 720px;
 }
 
 header {
@@ -98,7 +98,7 @@ pre, code {
 
 div#loading {
     text-align: center;
-    max-width: 640px;
+    max-width: 720px;
 }
 
 /* Blockquotes are rendered awfully by default so we need to fix that a bit. */
