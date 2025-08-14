@@ -44,7 +44,7 @@ import qualified Data.Map.Strict               as M
 import           Data.Maybe                    (maybeToList)
 import           Data.Text                     (Text)
 import qualified Data.Text                     as T
-import           Data.Traversable              (for)
+import           Data.Traversable              (mapAccumM)
 import qualified Text.Blaze.Html5              as H
 import           Text.Blaze.Html5              (Html, (!))
 import qualified Text.Blaze.Html5.Attributes   as A
@@ -217,7 +217,7 @@ skeletonToMarkdown = go 1
     go lvl (Skeleton title body) =
         [HeaderB $ Header lvl title] ++
         case body of
-            Left blocks -> blocks
+            Left blocks    -> blocks
             Right children -> concatMap (go (lvl + 1)) children
 
 
@@ -235,11 +235,19 @@ markdownLinks = M.toList . M.fromList . concatMap blockLinks
 --------------------------------------------------------------------------------
 genMarkdown :: MonadGen m => MarkdownGen m Markdown
 genMarkdown = do
+    -- So we can start with the right words, lorem lipsum.
+    p1 <- ParagraphB <$> genParagraph
+
     numBlocks <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
     skeleton <- genSkeleton genPlainPhrase genSpecialBlocksPlan numBlocks
 
-    hollow <- for skeleton $ \special ->
-        if special then genSpecialBlock else ParagraphB <$> genParagraph
+    (_, hollow) <- mapAccumM
+        (\isFirst isSpecial -> fmap ((,) False) $ case (isFirst, isSpecial) of
+            (True, _)  -> pure p1
+            (_, True)  -> genSpecialBlock
+            (_, False) -> ParagraphB <$> genParagraph)
+        True
+        skeleton
 
     noHeaders <- asks mcNoHeaders
     return $ (if noHeaders then removeHeaders else id) $
