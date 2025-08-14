@@ -123,23 +123,29 @@ instance (Show title, Show block) => Show (Skeleton title block) where
             []
 
 
--- Deepen:
--- - is it 4 items or more?
--- - is maxDepth ok?
--- - cut in to two up four
-
-genSkeleton :: forall m. MonadGen m => MarkdownGen m (Skeleton () ())
-genSkeleton = do
+--------------------------------------------------------------------------------
+-- | Generates a rough plan for what the document should look like.
+genSkeleton
+    :: forall m title block. MonadGen m
+    => (MarkdownGen m title)
+    -> (Int -> MarkdownGen m [block])
+    -> MarkdownGen m (Skeleton title block)
+genSkeleton genTitle genBlocks = do
     numBlocks <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
-    go numBlocks
+    go 1 numBlocks
   where
-    go :: Int -> MarkdownGen m (Skeleton () ())
-    go numBlocks
-        | numBlocks < 4 = pure $ Skeleton () $ Left $ replicate numBlocks ()
-        | otherwise = do
-            numSections <- randomInt (2, max 3 (numBlocks `div` 2 + 1))
-            partitioning <- partitionNicely numSections numBlocks
-            Skeleton () . Right <$> forM partitioning go
+    go :: Int -> Int -> MarkdownGen m (Skeleton title block)
+    go lvl numBlocks = do
+        title <- genTitle
+        numSections <- randomInt (1, max 3 (numBlocks `div` 2 + 1))
+        if numSections == 1 || numBlocks < 4 || lvl >= 6
+            then do
+                blocks <- genBlocks numBlocks
+                pure $ Skeleton title $ Left blocks
+            else do
+                partitioning <- partitionNicely numSections numBlocks
+                children <- forM partitioning (go (lvl + 1))
+                pure $ Skeleton title $ Right children
 
 
 --------------------------------------------------------------------------------
@@ -213,6 +219,10 @@ genMarkdown = do
         return $ h2 : section
 
     skeleton <- genSkeleton
+        -- Generate titles in skeleton
+        genPlainPhrase
+        -- Generate blocks in skeleton
+        genSpecialBlocksPlan
 
     h1      <- HeaderB    <$> genHeader 1
     lastPar <- ParagraphB <$> genParagraph
@@ -221,6 +231,14 @@ genMarkdown = do
         [ParagraphB [[Element $ PlainM $ T.pack $ show skeleton]]]
   where
     removeHeaders = filter (\b -> case b of HeaderB _ -> False; _ -> True)
+
+    -- Sprinkle special blocks in between normal blocks.
+    genSpecialBlocksPlan n
+        | n <= 0    = pure []
+        | n == 1    = pure [False]
+        | otherwise = do
+            special <- randomBool 3 1
+            ([False, special] ++) <$> genSpecialBlocksPlan (n - 2)
 
 
 --------------------------------------------------------------------------------
