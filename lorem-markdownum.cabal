@@ -63,6 +63,7 @@ Executable lorem-markdownum-web
 Executable lorem-markdownum-cli
   Hs-source-dirs: src
   Main-is:        LoremMarkdownum/CLI.hs
+  Ghc-options:    -Wall
 
   Build-depends:
     lorem-markdownum,

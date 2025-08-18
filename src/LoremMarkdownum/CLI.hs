@@ -1,17 +1,45 @@
 --------------------------------------------------------------------------------
-import           Control.Monad.Reader         (runReaderT)
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
+import           Control.Monad.Reader         (Reader, ask, runReader,
+                                               runReaderT)
+import qualified Data.Text                    as T
 import qualified Data.Text.Lazy.IO            as TL
+import           System.Environment           (getArgs)
+import           Text.Read                    (readMaybe)
 
 
 --------------------------------------------------------------------------------
 import           LoremMarkdownum.App
-import           LoremMarkdownum.Gen.Markdown (printMarkdown)
+import           LoremMarkdownum.Gen.Markdown
 import           LoremMarkdownum.Print        (runPrint)
+
+
+--------------------------------------------------------------------------------
+newtype CLIOptionsParser a
+    = CLIOptionsParser {unCLIOptionsParser :: Reader [T.Text] a}
+    deriving (Applicative, Functor)
+
+
+--------------------------------------------------------------------------------
+instance MarkdownOptionsParser CLIOptionsParser where
+    getBoolOption name = CLIOptionsParser $ do
+        args <- ask
+        pure $ any (== ("--" <> name)) args
+
+    getIntOption name = CLIOptionsParser $ do
+        args <- ask
+        pure $ case break (== ("--" <> name)) args of
+            (_, _ : val : _) -> readMaybe $ T.unpack val
+            _                -> Nothing
 
 
 --------------------------------------------------------------------------------
 main :: IO ()
 main = do
-    appEnv <- readDataFiles "data"
-    markdown <- runReaderT appGenMarkdown appEnv
-    TL.putStr $ runPrint (printMarkdown (fst appEnv) markdown)
+    args <- map T.pack <$> getArgs
+    let options = runReader (unCLIOptionsParser parseMarkdownOptions) args
+    (me, ms) <- readDataFiles "data"
+    let me' = me {meOptions = options}
+    markdown <- runReaderT appGenMarkdown (me', ms)
+    TL.putStr $ runPrint (printMarkdown me' markdown)
