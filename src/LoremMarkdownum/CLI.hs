@@ -12,7 +12,7 @@ import           Text.Read                    (readMaybe)
 --------------------------------------------------------------------------------
 import           LoremMarkdownum.App
 import           LoremMarkdownum.Gen.Markdown
-import           LoremMarkdownum.Print        (runPrint)
+import           LoremMarkdownum.Print        (runPrintWith)
 
 
 --------------------------------------------------------------------------------
@@ -39,7 +39,8 @@ main :: IO ()
 main = do
     args <- map T.pack <$> getArgs
     let options = runReader (unCLIOptionsParser parseMarkdownOptions) args
+        pc      = runReader (unCLIOptionsParser parsePrintConfig) args
     (me, ms) <- readDataFiles "data"
     let me' = me {meOptions = options}
     markdown <- runReaderT appGenMarkdown (me', ms)
-    TL.putStr $ runPrint (printMarkdown me' markdown)
+    TL.putStr $ runPrintWith pc (printMarkdown me' markdown)

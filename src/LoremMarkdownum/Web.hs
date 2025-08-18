@@ -79,7 +79,7 @@ app config = Snap.route
 index :: AppM ()
 index = do
     (mc, markdownState) <- ask
-    pc <- getPrintConfig
+    pc <- unAppOptionsParser parsePrintConfig
     m  <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
     Snap.blaze $ Views.index pc mc m
 
@@ -89,7 +89,7 @@ markdown :: AppM ()
 markdown = do
     (_, markdownState) <- ask
     mc                 <- getMarkdownEnv
-    pc                 <- getPrintConfig
+    pc                 <- unAppOptionsParser parsePrintConfig
     m                  <- local (\_-> (mc, markdownState)) appGenMarkdown
     Snap.modifyResponse $ Snap.setContentType "text/plain"
 
@@ -104,7 +104,7 @@ markdownHtml :: AppM ()
 markdownHtml = do
     (_, markdownState) <- ask
     mc                 <- getMarkdownEnv
-    pc                 <- getPrintConfig
+    pc                 <- unAppOptionsParser parsePrintConfig
     m                  <- local (\_ -> (mc, markdownState)) appGenMarkdown
     Snap.blaze $ Views.markdownHtml pc mc m
 
@@ -148,12 +148,3 @@ getMarkdownEnv = do
     (mc, _) <- ask
     mo      <- unAppOptionsParser parseMarkdownOptions
     return mc { meOptions = mo }
-
-
---------------------------------------------------------------------------------
-getPrintConfig :: AppM PrintConfig
-getPrintConfig = do
-    noWrapping <- getBoolParam "no-wrapping"
-    case noWrapping of
-        False -> return defaultPrintConfig
-        True  -> return defaultPrintConfig {pcWrapCol = Nothing}

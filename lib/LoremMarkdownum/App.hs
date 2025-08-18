@@ -6,6 +6,7 @@
 module LoremMarkdownum.App
     ( MarkdownOptionsParser (..)
     , parseMarkdownOptions
+    , parsePrintConfig
 
     , AppEnv
     , readDataFiles
@@ -23,6 +24,7 @@ import           System.FilePath               ((</>))
 --------------------------------------------------------------------------------
 import qualified LoremMarkdownum.FrequencyTree as FT
 import           LoremMarkdownum.Gen
+import           LoremMarkdownum.Print
 import           LoremMarkdownum.Gen.Code
 import           LoremMarkdownum.Gen.Markdown
 import qualified LoremMarkdownum.Markov        as Markov
@@ -53,6 +55,15 @@ parseMarkdownOptions = MarkdownOptions
     <*> (fmap (max 1 . min 50) <$> getIntOption "num-blocks")
     <*> getBoolOption                           "fenced-code-blocks"
     <*> getIntOption                            "seed"
+
+
+--------------------------------------------------------------------------------
+parsePrintConfig :: MarkdownOptionsParser m => m PrintConfig
+parsePrintConfig =
+    (\noWrapping -> case noWrapping of
+        False -> defaultPrintConfig
+        True  -> defaultPrintConfig {pcWrapCol = Nothing}) <$>
+    getBoolOption "no-wrapping"
 
 
 --------------------------------------------------------------------------------
