@@ -1,8 +1,10 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module LoremMarkdownum.Gen.Markdown
-    ( MarkdownConfig (..)
+    ( MarkdownOptions (..)
+    , MarkdownEnv (..)
     , mkDefaultMarkdownConfig
     , MarkdownState (..)
     , MarkdownGen
@@ -64,23 +66,34 @@ import           LoremMarkdownum.Token
 
 
 --------------------------------------------------------------------------------
-data MarkdownConfig = MarkdownConfig
-    { mcLengthMarkov     :: Markov (Token Int)
-    , mcWordFrequency    :: Map Int (FrequencyTree Text)
-    , mcCodeConfig       :: CodeConfig
-    , mcNoHeaders        :: Bool
-    , mcNoCode           :: Bool
-    , mcNoQuotes         :: Bool
-    , mcNoLists          :: Bool
-    , mcNoInlineMarkup   :: Bool
-    , mcReferenceLinks   :: Bool
-    , mcUnderlineHeaders :: Bool
-    , mcUnderscoreEm     :: Bool
-    , mcUnderscoreStrong :: Bool
-    , mcNumBlocks        :: Maybe Int
-    , mcInternalLinks    :: [T.Text]
-    , mcFencedCodeBlocks :: Bool
-    , mcSeed             :: Maybe Int
+data MarkdownOptions = MarkdownOptions
+    { moNoHeaders        :: Bool
+    , moNoCode           :: Bool
+    , moNoQuotes         :: Bool
+    , moNoLists          :: Bool
+    , moNoInlineMarkup   :: Bool
+    , moReferenceLinks   :: Bool
+    , moUnderlineHeaders :: Bool
+    , moUnderscoreEm     :: Bool
+    , moUnderscoreStrong :: Bool
+    , moNumBlocks        :: Maybe Int
+    , moFencedCodeBlocks :: Bool
+    , moSeed             :: Maybe Int
+    } deriving (Show)
+
+--------------------------------------------------------------------------------
+defaultMarkdownOptions :: MarkdownOptions
+defaultMarkdownOptions = MarkdownOptions
+    False False False False False False False False False Nothing False Nothing
+
+
+--------------------------------------------------------------------------------
+data MarkdownEnv = MarkdownEnv
+    { meLengthMarkov  :: Markov (Token Int)
+    , meWordFrequency :: Map Int (FrequencyTree Text)
+    , meCodeConfig    :: CodeConfig
+    , meOptions       :: MarkdownOptions
+    , meInternalLinks :: [T.Text]
     } deriving (Show)
 
 
@@ -88,10 +101,9 @@ data MarkdownConfig = MarkdownConfig
 mkDefaultMarkdownConfig :: Markov (Token Int)
                         -> Map Int (FrequencyTree Text)
                         -> CodeConfig
-                        -> MarkdownConfig
-mkDefaultMarkdownConfig mrkv ft cc = MarkdownConfig mrkv ft cc
-    False False False False False False False False False Nothing [] False
-    Nothing
+                        -> MarkdownEnv
+mkDefaultMarkdownConfig mrkv ft cc =
+    MarkdownEnv mrkv ft cc defaultMarkdownOptions []
 
 
 --------------------------------------------------------------------------------
@@ -101,12 +113,12 @@ data MarkdownState = MarkdownState
 
 
 --------------------------------------------------------------------------------
-type MarkdownGen m a = ReaderT MarkdownConfig (StateT MarkdownState m) a
+type MarkdownGen m a = ReaderT MarkdownEnv (StateT MarkdownState m) a
 
 
 --------------------------------------------------------------------------------
 runMarkdownGen :: MonadGen m
-               => MarkdownGen m a -> MarkdownConfig -> MarkdownState -> m a
+               => MarkdownGen m a -> MarkdownEnv -> MarkdownState -> m a
 runMarkdownGen mg mc = evalStateT (runReaderT mg mc)
 
 
@@ -242,13 +254,13 @@ genMarkdown = do
     -- So we can start with the right words, lorem lipsum.
     p1 <- ParagraphB <$> genParagraph
 
-    numBlocks <- maybe (randomInt (7, 9)) return . mcNumBlocks =<< ask
+    numBlocks <- maybe (randomInt (7, 9)) return . moNumBlocks . meOptions =<< ask
     skeleton <- genSkeleton
         (Header <$> genPlainPhrase) genSpecialBlocksPlan numBlocks
 
     let internalLinks = map ("#" <>) $ map headerID $
             biconcatMap pure (const []) skeleton
-    (_, hollow) <- local (\mc -> mc {mcInternalLinks = internalLinks }) $
+    (_, hollow) <- local (\me -> me {meInternalLinks = internalLinks }) $
         mapAccumM
             (\isFirst special -> fmap ((,) False) $ case (isFirst, special) of
                 (True, _)  -> pure p1
@@ -257,7 +269,7 @@ genMarkdown = do
             True
             skeleton
 
-    noHeaders <- asks mcNoHeaders
+    noHeaders <- asks $ moNoHeaders . meOptions
     return $ (if noHeaders then removeHeaders else id) $
         skeletonToMarkdown hollow
   where
@@ -276,9 +288,9 @@ genMarkdown = do
 -- TODO (jaspervdj: Not sure about the name
 genSpecialBlock :: MonadGen m => MarkdownGen m Block
 genSpecialBlock = do
-    noCode   <- asks mcNoCode
-    noQuotes <- asks mcNoQuotes
-    noLists  <- asks mcNoLists
+    noCode   <- asks $ moNoCode   . meOptions
+    noQuotes <- asks $ moNoQuotes . meOptions
+    noLists  <- asks $ moNoLists  . meOptions
     let freqs =
             [ (if noLists  then 0 else 1, OrderedListB   <$> genOrderedList)
             , (if noLists  then 0 else 1, UnorderedListB <$> genUnorderedList)
@@ -290,7 +302,7 @@ genSpecialBlock = do
         else oneOfFrequencies freqs
   where
     genCodeBlock = do
-        codeConfig <- mcCodeConfig <$> ask
+        codeConfig <- meCodeConfig <$> ask
         depth0 (runCodeGen genCode codeConfig)
 
 
@@ -317,7 +329,7 @@ genUnorderedList = genOrderedList
 --------------------------------------------------------------------------------
 genToken :: MonadGen m => MarkdownGen m (Token Text)
 genToken = do
-    lengthMarkov <- mcLengthMarkov <$> ask
+    lengthMarkov <- meLengthMarkov <$> ask
     wordsQueue   <- msTokenQueue   <$> get
     let keys = map (fmap T.length) wordsQueue
     case Markov.lookup keys lengthMarkov of
@@ -342,7 +354,7 @@ genElementToken = do
 --------------------------------------------------------------------------------
 genWord :: MonadGen m => Int -> MarkdownGen m Text
 genWord len = do
-    wordSamples <- asks mcWordFrequency
+    wordSamples <- asks meWordFrequency
     case M.lookup len wordSamples of
         Just ft -> sampleFromFrequencyTree ft
         Nothing -> error $
@@ -358,7 +370,7 @@ genRegularSentence = randomInt (10, 20) >>= genSentence
 --------------------------------------------------------------------------------
 genSentence :: MonadGen m => Int -> MarkdownGen m Sentence
 genSentence n = do
-    noInlineMarkup <- mcNoInlineMarkup <$> ask
+    noInlineMarkup <- moNoInlineMarkup . meOptions <$> ask
     sentence       <- genPlainSentence n
     if noInlineMarkup
         then return (map (fmap PlainM) sentence)
@@ -454,46 +466,46 @@ headerID (Header plain) = T.intercalate "-" $ do
 --------------------------------------------------------------------------------
 genLink :: MonadGen m => MarkdownGen m (Maybe (MarkdownGen m Text))
 genLink = do
-    internalLinks <- asks mcInternalLinks
+    internalLinks <- asks meInternalLinks
     pure $ case internalLinks of
         []    -> Nothing
         links -> Just $ sampleFromList links
 
 
 --------------------------------------------------------------------------------
-printMarkdown :: MarkdownConfig -> Markdown -> Print ()
-printMarkdown mc blocks = do
-    sequence_ $ intersperse printNl $ map (printBlock mc) blocks
+printMarkdown :: MarkdownEnv -> Markdown -> Print ()
+printMarkdown me blocks = do
+    sequence_ $ intersperse printNl $ map (printBlock me) blocks
     let links = markdownLinks blocks
-    when (mcReferenceLinks mc && not (null links)) $ do
+    when (moReferenceLinks (meOptions me) && not (null links)) $ do
         printNl
         mapM_ (uncurry printLink) links
   where
     printLink str link =
-        printText "[" >> printSentence mc str >> printText "]: " >>
+        printText "[" >> printSentence me str >> printText "]: " >>
         printText link >> printNl
 
 
 --------------------------------------------------------------------------------
-printBlock :: MarkdownConfig -> Block -> Print ()
-printBlock mc (HeaderB lvl h)     = printHeader mc lvl h
-printBlock mc (ParagraphB p)     = printParagraph mc p
-printBlock mc (OrderedListB l)   = printOrderedList mc l
-printBlock mc (UnorderedListB l) = printUnorderedList mc l
-printBlock mc  (CodeB c)
-    | mcFencedCodeBlocks mc      = do
+printBlock :: MarkdownEnv -> Block -> Print ()
+printBlock me (HeaderB lvl h)     = printHeader me lvl h
+printBlock me (ParagraphB p)     = printParagraph me p
+printBlock me (OrderedListB l)   = printOrderedList me l
+printBlock me (UnorderedListB l) = printUnorderedList me l
+printBlock me  (CodeB c)
+    | moFencedCodeBlocks (meOptions me) = do
         printText "```" >> printNl
         printCode c
         printText "```" >> printNl
     | otherwise                  = printIndent4 (printCode c)
-printBlock mc (QuoteB p)         = printWrapIndent "> " $
-    printText "> " >> printParagraph mc p
+printBlock me (QuoteB p)         = printWrapIndent "> " $
+    printText "> " >> printParagraph me p
 
 
 --------------------------------------------------------------------------------
-printHeader :: MarkdownConfig -> Int -> Header -> Print ()
-printHeader mc lvl (Header p)
-    | mcUnderlineHeaders mc && lvl <= 2 = do
+printHeader :: MarkdownEnv -> Int -> Header -> Print ()
+printHeader me lvl (Header p)
+    | moUnderlineHeaders (meOptions me) && lvl <= 2 = do
         let len  = runPrintLength (printPlainPhrase p)
             char = if lvl <= 1 then "=" else "-"
         printPlainPhrase p >> printNl
@@ -503,41 +515,43 @@ printHeader mc lvl (Header p)
 
 
 --------------------------------------------------------------------------------
-printParagraph :: MarkdownConfig -> Paragraph -> Print ()
-printParagraph mc paragraph = do
-    sequence_ $ intersperse printBrkSp (map (printSentence mc) paragraph)
+printParagraph :: MarkdownEnv -> Paragraph -> Print ()
+printParagraph me paragraph = do
+    sequence_ $ intersperse printBrkSp (map (printSentence me) paragraph)
     printNl
 
 
 --------------------------------------------------------------------------------
-printOrderedList :: MarkdownConfig -> [Phrase] -> Print ()
+printOrderedList :: MarkdownEnv -> [Phrase] -> Print ()
 printOrderedList mc phrases = forM_ (zip [1 :: Int .. ] phrases) $ \(i, p) ->
     printShow i >> printText ". " >> printPhrase mc p >> printNl
 
 
 --------------------------------------------------------------------------------
-printUnorderedList :: MarkdownConfig -> [Phrase] -> Print ()
+printUnorderedList :: MarkdownEnv -> [Phrase] -> Print ()
 printUnorderedList mc phrases = forM_ phrases $ \p ->
     printText "- " >> printPhrase mc p >> printNl
 
 
 --------------------------------------------------------------------------------
-printSentence :: MarkdownConfig -> Sentence -> Print ()
+printSentence :: MarkdownEnv -> Sentence -> Print ()
 printSentence mc = printStream printMarkup
   where
+    MarkdownOptions {..} = meOptions mc
+
     printMarkup (PlainM t) = printText t
     printMarkup (ItalicM m)
-        | mcUnderscoreEm mc =
+        | moUnderscoreEm =
             printText "_" >> printStream printMarkup m >> printText "_"
         | otherwise         =
             printText "*" >> printStream printMarkup m >> printText "*"
     printMarkup (BoldM  m)
-        | mcUnderscoreStrong mc =
+        | moUnderscoreStrong =
             printText "__" >> printStream printMarkup m >> printText "__"
         | otherwise             =
             printText "**" >> printStream printMarkup m >> printText "**"
     printMarkup (LinkM m l)
-        | mcReferenceLinks mc =
+        | moReferenceLinks =
             printText "[" >> printStream printMarkup m >> printText "]"
         | otherwise        =
             printText "[" >> printStream printMarkup m >> printText "](" >>
@@ -545,7 +559,7 @@ printSentence mc = printStream printMarkup
 
 
 --------------------------------------------------------------------------------
-printPhrase :: MarkdownConfig -> Phrase -> Print ()
+printPhrase :: MarkdownEnv -> Phrase -> Print ()
 printPhrase = printSentence
 
 

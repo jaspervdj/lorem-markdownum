@@ -4,7 +4,10 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 module LoremMarkdownum.App
-    ( AppEnv
+    ( MarkdownOptionsParser (..)
+    , parseMarkdownOptions
+
+    , AppEnv
     , readDataFiles
     , appGenMarkdown
     ) where
@@ -28,7 +31,32 @@ import           LoremMarkdownum.Token.Parse
 
 
 --------------------------------------------------------------------------------
-type AppEnv = (MarkdownConfig, MarkdownState)
+-- TODO: Move to Markdown, and replace part of MarkdownConfig?
+-- TODO: Rename MarkdownConfig to MarkdownEnv?
+class Applicative m => MarkdownOptionsParser m where
+    getBoolOption :: T.Text -> m Bool
+    getIntOption  :: T.Text -> m (Maybe Int)
+
+
+--------------------------------------------------------------------------------
+parseMarkdownOptions :: MarkdownOptionsParser m => m MarkdownOptions
+parseMarkdownOptions = MarkdownOptions
+    <$> getBoolOption                           "no-headers"
+    <*> getBoolOption                           "no-code"
+    <*> getBoolOption                           "no-quotes"
+    <*> getBoolOption                           "no-lists"
+    <*> getBoolOption                           "no-inline-markup"
+    <*> getBoolOption                           "reference-links"
+    <*> getBoolOption                           "underline-headers"
+    <*> getBoolOption                           "underscore-em"
+    <*> getBoolOption                           "underscore-strong"
+    <*> (fmap (max 1 . min 50) <$> getIntOption "num-blocks")
+    <*> getBoolOption                           "fenced-code-blocks"
+    <*> getIntOption                            "seed"
+
+
+--------------------------------------------------------------------------------
+type AppEnv = (MarkdownEnv, MarkdownState)
 
 
 --------------------------------------------------------------------------------
@@ -53,9 +81,9 @@ readDataFiles dataDir = do
 --------------------------------------------------------------------------------
 appGenMarkdown :: (MonadIO m, MonadReader AppEnv m) => m Markdown
 appGenMarkdown = do
-    (mc, markdownState) <- ask
-    case mcSeed mc of
+    (me, markdownState) <- ask
+    case moSeed (meOptions me) of
         Just seed -> pure $ runGenPure
-            (runMarkdownGen genMarkdown mc markdownState) seed
+            (runMarkdownGen genMarkdown me markdownState) seed
         Nothing -> liftIO $ runGenIO $
-            runMarkdownGen genMarkdown mc markdownState
+            runMarkdownGen genMarkdown me markdownState

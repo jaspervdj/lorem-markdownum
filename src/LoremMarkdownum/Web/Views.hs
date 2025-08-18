@@ -21,8 +21,8 @@ import           LoremMarkdownum.Print
 
 
 --------------------------------------------------------------------------------
-index :: PrintConfig -> MarkdownConfig -> Markdown -> Html
-index pc mc markdown = H.docTypeHtml $ do
+index :: PrintConfig -> MarkdownEnv -> Markdown -> Html
+index pc me markdown = H.docTypeHtml $ do
     H.head $ do
         H.meta H.! A.charset "UTF-8"
         H.meta H.! A.name "viewport" H.! A.content "width=device-width, initial-scale=1"
@@ -60,20 +60,20 @@ index pc mc markdown = H.docTypeHtml $ do
                 H.div ! A.id "advanced" ! A.class_ "slider" ! A.style "height: 0px" $
                     H.div ! A.class_ "columns" ! A.style "display: flex;" $ do
                         H.div ! A.class_ "column" $ do
-                            checkbox (mcNoHeaders mc)        "no-headers"        "No headers"
-                            checkbox (mcNoCode mc)           "no-code"           "No code snippets"
-                            checkbox (mcNoInlineMarkup mc)   "no-inline-markup"  "No inline markup"
-                            checkbox (mcNoQuotes mc)         "no-quotes"         "No blockquotes"
-                            checkbox (mcNoLists mc)          "no-lists"          "No lists"
+                            checkbox (moNoHeaders mo)        "no-headers"        "No headers"
+                            checkbox (moNoCode mo)           "no-code"           "No code snippets"
+                            checkbox (moNoInlineMarkup mo)   "no-inline-markup"  "No inline markup"
+                            checkbox (moNoQuotes mo)         "no-quotes"         "No blockquotes"
+                            checkbox (moNoLists mo)          "no-lists"          "No lists"
                             checkbox (isNothing $ pcWrapCol pc) "no-wrapping"    "No wrapping"
 
                         H.div ! A.class_ "column" $ do
-                            checkbox (mcUnderlineHeaders mc) "underline-headers" "Underlined headers"
-                            checkbox (mcReferenceLinks mc)   "reference-links"   "Reference-style links"
+                            checkbox (moUnderlineHeaders mo) "underline-headers" "Underlined headers"
+                            checkbox (moReferenceLinks mo)   "reference-links"   "Reference-style links"
 
-                            checkbox (mcUnderscoreEm mc)     "underscore-em"     $ (H.code "_" <> "-style em")
-                            checkbox (mcUnderscoreStrong mc) "underscore-strong" $ (H.code "__" <> "-style strong text")
-                            checkbox (mcFencedCodeBlocks mc) "fenced-code-blocks" $ (H.code "```" <> "-style code blocks")
+                            checkbox (moUnderscoreEm mo)     "underscore-em"     $ (H.code "_" <> "-style em")
+                            checkbox (moUnderscoreStrong mo) "underscore-strong" $ (H.code "__" <> "-style strong text")
+                            checkbox (moFencedCodeBlocks mo) "fenced-code-blocks" $ (H.code "```" <> "-style code blocks")
                             H.input ! A.type_ "text" ! A.size "2"
                                 ! A.name "num-blocks" ! A.id "num-blocks"
                                 ! A.class_ "small"
@@ -102,7 +102,7 @@ index pc mc markdown = H.docTypeHtml $ do
         H.div ! A.id "results" $ do
             H.div ! A.id "loading" ! A.style "display: none;" $ "⌛"
             H.div ! A.id "markdown-html" ! A.class_ "slider" $
-                markdownHtml pc mc markdown
+                markdownHtml pc me markdown
   where
     loremIpsumUrl  = "http://www.lipsum.com/"
     markdownUrl    = "http://daringfireball.net/projects/markdown/"
@@ -111,6 +111,8 @@ index pc mc markdown = H.docTypeHtml $ do
     haskellUrl     = "http://www.haskell.org/"
     githubUrl      = "http://github.com/jaspervdj/lorem-markdownum"
     httpApiUrl     = "http://github.com/jaspervdj/lorem-markdownum#http-api"
+
+    mo = meOptions me
 
 
 --------------------------------------------------------------------------------
@@ -124,7 +126,7 @@ checkbox checked id' label = do
 
 
 --------------------------------------------------------------------------------
-markdownHtml :: PrintConfig -> MarkdownConfig -> Markdown -> Html
+markdownHtml :: PrintConfig -> MarkdownEnv -> Markdown -> Html
 markdownHtml pc mc md = do
     H.pre ! A.class_ "markdown" $
         H.toHtml $ runPrintWith pc $ printMarkdown mc md
