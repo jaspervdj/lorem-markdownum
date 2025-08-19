@@ -22,7 +22,7 @@ newtype CLIOptionsParser a
 
 
 --------------------------------------------------------------------------------
-instance MarkdownOptionsParser CLIOptionsParser where
+instance OptionsParser CLIOptionsParser where
     getBoolOption name = CLIOptionsParser $ do
         args <- ask
         pure $ any (== ("--" <> name)) args
@@ -39,7 +39,7 @@ main :: IO ()
 main = do
     args <- map T.pack <$> getArgs
     let options = runReader (unCLIOptionsParser parseMarkdownOptions) args
-        pc      = runReader (unCLIOptionsParser parsePrintConfig) args
+        pc      = runReader (unCLIOptionsParser parsePrintOptions) args
     (me, ms) <- readDataFiles "data"
     let me' = me {meOptions = options}
     markdown <- runReaderT appGenMarkdown (me', ms)

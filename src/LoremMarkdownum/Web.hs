@@ -79,7 +79,7 @@ app config = Snap.route
 index :: AppM ()
 index = do
     (mc, markdownState) <- ask
-    pc <- unAppOptionsParser parsePrintConfig
+    pc <- unAppOptionsParser parsePrintOptions
     m  <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
     Snap.blaze $ Views.index pc mc m
 
@@ -89,7 +89,7 @@ markdown :: AppM ()
 markdown = do
     (_, markdownState) <- ask
     mc                 <- getMarkdownEnv
-    pc                 <- unAppOptionsParser parsePrintConfig
+    pc                 <- unAppOptionsParser parsePrintOptions
     m                  <- local (\_-> (mc, markdownState)) appGenMarkdown
     Snap.modifyResponse $ Snap.setContentType "text/plain"
 
@@ -104,7 +104,7 @@ markdownHtml :: AppM ()
 markdownHtml = do
     (_, markdownState) <- ask
     mc                 <- getMarkdownEnv
-    pc                 <- unAppOptionsParser parsePrintConfig
+    pc                 <- unAppOptionsParser parsePrintOptions
     m                  <- local (\_ -> (mc, markdownState)) appGenMarkdown
     Snap.blaze $ Views.markdownHtml pc mc m
 
@@ -137,7 +137,7 @@ newtype AppOptionsParser a = AppOptionsParser {unAppOptionsParser :: AppM a}
 
 
 --------------------------------------------------------------------------------
-instance MarkdownOptionsParser AppOptionsParser where
+instance OptionsParser AppOptionsParser where
     getBoolOption = AppOptionsParser . getBoolParam
     getIntOption  = AppOptionsParser . getIntParam
 

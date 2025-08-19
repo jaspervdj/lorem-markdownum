@@ -4,9 +4,9 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 module LoremMarkdownum.App
-    ( MarkdownOptionsParser (..)
+    ( OptionsParser (..)
     , parseMarkdownOptions
-    , parsePrintConfig
+    , parsePrintOptions
 
     , AppEnv
     , readDataFiles
@@ -33,15 +33,13 @@ import           LoremMarkdownum.Token.Parse
 
 
 --------------------------------------------------------------------------------
--- TODO: Move to Markdown, and replace part of MarkdownConfig?
--- TODO: Rename MarkdownConfig to MarkdownEnv?
-class Applicative m => MarkdownOptionsParser m where
+class Applicative m => OptionsParser m where
     getBoolOption :: T.Text -> m Bool
     getIntOption  :: T.Text -> m (Maybe Int)
 
 
 --------------------------------------------------------------------------------
-parseMarkdownOptions :: MarkdownOptionsParser m => m MarkdownOptions
+parseMarkdownOptions :: OptionsParser m => m MarkdownOptions
 parseMarkdownOptions = MarkdownOptions
     <$> getBoolOption                           "no-headers"
     <*> getBoolOption                           "no-code"
@@ -58,8 +56,8 @@ parseMarkdownOptions = MarkdownOptions
 
 
 --------------------------------------------------------------------------------
-parsePrintConfig :: MarkdownOptionsParser m => m PrintConfig
-parsePrintConfig =
+parsePrintOptions :: OptionsParser m => m PrintConfig
+parsePrintOptions =
     (\noWrapping -> case noWrapping of
         False -> defaultPrintConfig
         True  -> defaultPrintConfig {pcWrapCol = Nothing}) <$>
