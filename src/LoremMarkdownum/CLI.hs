@@ -1,8 +1,7 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
-import           Control.Monad.Reader         (Reader, ask, runReader,
-                                               runReaderT)
+import           Control.Monad.Reader         (Reader, ask, runReader)
 import qualified Data.Text                    as T
 import qualified Data.Text.Lazy.IO            as TL
 import           System.Environment           (getArgs)
@@ -40,7 +39,6 @@ main = do
     args <- map T.pack <$> getArgs
     let options = runReader (unCLIOptionsParser parseMarkdownOptions) args
         pc      = runReader (unCLIOptionsParser parsePrintOptions) args
-    (me, ms) <- readDataFiles "data"
-    let me' = me {meOptions = options}
-    markdown <- runReaderT appGenMarkdown (me', ms)
-    TL.putStr $ runPrintWith pc (printMarkdown me' markdown)
+    model <- loadMarkdownModel "data"
+    markdown <- generateMarkdown model options
+    TL.putStr $ runPrintWith pc (printMarkdown options markdown)

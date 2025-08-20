@@ -21,8 +21,8 @@ import           LoremMarkdownum.Print
 
 
 --------------------------------------------------------------------------------
-index :: PrintConfig -> MarkdownEnv -> Markdown -> Html
-index pc me markdown = H.docTypeHtml $ do
+index :: PrintOptions -> MarkdownOptions -> Markdown -> Html
+index pc mo markdown = H.docTypeHtml $ do
     H.head $ do
         H.meta H.! A.charset "UTF-8"
         H.meta H.! A.name "viewport" H.! A.content "width=device-width, initial-scale=1"
@@ -102,7 +102,7 @@ index pc me markdown = H.docTypeHtml $ do
         H.div ! A.id "results" $ do
             H.div ! A.id "loading" ! A.style "display: none;" $ "⌛"
             H.div ! A.id "markdown-html" ! A.class_ "slider" $
-                markdownHtml pc me markdown
+                markdownHtml pc mo markdown
   where
     loremIpsumUrl  = "http://www.lipsum.com/"
     markdownUrl    = "http://daringfireball.net/projects/markdown/"
@@ -111,8 +111,6 @@ index pc me markdown = H.docTypeHtml $ do
     haskellUrl     = "http://www.haskell.org/"
     githubUrl      = "http://github.com/jaspervdj/lorem-markdownum"
     httpApiUrl     = "http://github.com/jaspervdj/lorem-markdownum#http-api"
-
-    mo = meOptions me
 
 
 --------------------------------------------------------------------------------
@@ -126,8 +124,8 @@ checkbox checked id' label = do
 
 
 --------------------------------------------------------------------------------
-markdownHtml :: PrintConfig -> MarkdownEnv -> Markdown -> Html
-markdownHtml pc mc md = do
+markdownHtml :: PrintOptions -> MarkdownOptions -> Markdown -> Html
+markdownHtml po mo md = do
     H.pre ! A.class_ "markdown" $
-        H.toHtml $ runPrintWith pc $ printMarkdown mc md
+        H.toHtml $ runPrintWith po $ printMarkdown mo md
     H.div ! A.class_ "html" ! A.style "display: none;" $ previewMarkdown md

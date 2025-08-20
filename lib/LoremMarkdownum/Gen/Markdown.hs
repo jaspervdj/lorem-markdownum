@@ -4,9 +4,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module LoremMarkdownum.Gen.Markdown
     ( MarkdownOptions (..)
-    , MarkdownEnv (..)
-    , mkDefaultMarkdownConfig
-    , MarkdownState (..)
+    , MarkdownModel (..)
+    , defaultMarkdownOptions
+
     , MarkdownGen
     , runMarkdownGen
 
@@ -66,6 +66,7 @@ import           LoremMarkdownum.Token
 
 
 --------------------------------------------------------------------------------
+-- | MarkdownOptions can be tweaked for each invokation.
 data MarkdownOptions = MarkdownOptions
     { moNoHeaders        :: Bool
     , moNoCode           :: Bool
@@ -81,6 +82,16 @@ data MarkdownOptions = MarkdownOptions
     , moSeed             :: Maybe Int
     } deriving (Show)
 
+
+--------------------------------------------------------------------------------
+-- | MarkdownModel has all the bits that are static accross invokations.
+data MarkdownModel = MarkdownModel
+    { mmLengthMarkov  :: Markov (Token Int)
+    , mmWordFrequency :: Map Int (FrequencyTree Text)
+    , mmCodeConfig    :: CodeConfig
+    , mmStart         :: [Token Text]
+    } deriving (Show)
+
 --------------------------------------------------------------------------------
 defaultMarkdownOptions :: MarkdownOptions
 defaultMarkdownOptions = MarkdownOptions
@@ -89,21 +100,10 @@ defaultMarkdownOptions = MarkdownOptions
 
 --------------------------------------------------------------------------------
 data MarkdownEnv = MarkdownEnv
-    { meLengthMarkov  :: Markov (Token Int)
-    , meWordFrequency :: Map Int (FrequencyTree Text)
-    , meCodeConfig    :: CodeConfig
-    , meOptions       :: MarkdownOptions
+    { meOptions       :: MarkdownOptions
+    , meModel         :: MarkdownModel
     , meInternalLinks :: [T.Text]
     } deriving (Show)
-
-
---------------------------------------------------------------------------------
-mkDefaultMarkdownConfig :: Markov (Token Int)
-                        -> Map Int (FrequencyTree Text)
-                        -> CodeConfig
-                        -> MarkdownEnv
-mkDefaultMarkdownConfig mrkv ft cc =
-    MarkdownEnv mrkv ft cc defaultMarkdownOptions []
 
 
 --------------------------------------------------------------------------------
@@ -117,9 +117,13 @@ type MarkdownGen m a = ReaderT MarkdownEnv (StateT MarkdownState m) a
 
 
 --------------------------------------------------------------------------------
-runMarkdownGen :: MonadGen m
-               => MarkdownGen m a -> MarkdownEnv -> MarkdownState -> m a
-runMarkdownGen mg mc = evalStateT (runReaderT mg mc)
+runMarkdownGen
+    :: MonadGen m
+    => MarkdownGen m a -> MarkdownModel -> MarkdownOptions -> m a
+runMarkdownGen mg mm mo = evalStateT (runReaderT mg env) state0
+  where
+    env    = MarkdownEnv mo mm []
+    state0 = MarkdownState (mmStart mm)
 
 
 --------------------------------------------------------------------------------
@@ -302,7 +306,7 @@ genSpecialBlock = do
         else oneOfFrequencies freqs
   where
     genCodeBlock = do
-        codeConfig <- meCodeConfig <$> ask
+        codeConfig <- mmCodeConfig . meModel <$> ask
         depth0 (runCodeGen genCode codeConfig)
 
 
@@ -329,8 +333,8 @@ genUnorderedList = genOrderedList
 --------------------------------------------------------------------------------
 genToken :: MonadGen m => MarkdownGen m (Token Text)
 genToken = do
-    lengthMarkov <- meLengthMarkov <$> ask
-    wordsQueue   <- msTokenQueue   <$> get
+    lengthMarkov <- mmLengthMarkov . meModel <$> ask
+    wordsQueue   <- msTokenQueue <$> get
     let keys = map (fmap T.length) wordsQueue
     case Markov.lookup keys lengthMarkov of
         Just ft -> do
@@ -354,7 +358,7 @@ genElementToken = do
 --------------------------------------------------------------------------------
 genWord :: MonadGen m => Int -> MarkdownGen m Text
 genWord len = do
-    wordSamples <- asks meWordFrequency
+    wordSamples <- asks $ mmWordFrequency . meModel
     case M.lookup len wordSamples of
         Just ft -> sampleFromFrequencyTree ft
         Nothing -> error $
@@ -473,39 +477,39 @@ genLink = do
 
 
 --------------------------------------------------------------------------------
-printMarkdown :: MarkdownEnv -> Markdown -> Print ()
-printMarkdown me blocks = do
-    sequence_ $ intersperse printNl $ map (printBlock me) blocks
+printMarkdown :: MarkdownOptions -> Markdown -> Print ()
+printMarkdown mo blocks = do
+    sequence_ $ intersperse printNl $ map (printBlock mo) blocks
     let links = markdownLinks blocks
-    when (moReferenceLinks (meOptions me) && not (null links)) $ do
+    when (moReferenceLinks mo && not (null links)) $ do
         printNl
         mapM_ (uncurry printLink) links
   where
     printLink str link =
-        printText "[" >> printSentence me str >> printText "]: " >>
+        printText "[" >> printSentence mo str >> printText "]: " >>
         printText link >> printNl
 
 
 --------------------------------------------------------------------------------
-printBlock :: MarkdownEnv -> Block -> Print ()
-printBlock me (HeaderB lvl h)     = printHeader me lvl h
-printBlock me (ParagraphB p)     = printParagraph me p
-printBlock me (OrderedListB l)   = printOrderedList me l
-printBlock me (UnorderedListB l) = printUnorderedList me l
-printBlock me  (CodeB c)
-    | moFencedCodeBlocks (meOptions me) = do
+printBlock :: MarkdownOptions -> Block -> Print ()
+printBlock mo (HeaderB lvl h)    = printHeader mo lvl h
+printBlock mo (ParagraphB p)     = printParagraph mo p
+printBlock mo (OrderedListB l)   = printOrderedList mo l
+printBlock mo (UnorderedListB l) = printUnorderedList mo l
+printBlock mo  (CodeB c)
+    | moFencedCodeBlocks mo = do
         printText "```" >> printNl
         printCode c
         printText "```" >> printNl
     | otherwise                  = printIndent4 (printCode c)
-printBlock me (QuoteB p)         = printWrapIndent "> " $
-    printText "> " >> printParagraph me p
+printBlock mo (QuoteB p)         = printWrapIndent "> " $
+    printText "> " >> printParagraph mo p
 
 
 --------------------------------------------------------------------------------
-printHeader :: MarkdownEnv -> Int -> Header -> Print ()
-printHeader me lvl (Header p)
-    | moUnderlineHeaders (meOptions me) && lvl <= 2 = do
+printHeader :: MarkdownOptions -> Int -> Header -> Print ()
+printHeader mo lvl (Header p)
+    | moUnderlineHeaders mo && lvl <= 2 = do
         let len  = runPrintLength (printPlainPhrase p)
             char = if lvl <= 1 then "=" else "-"
         printPlainPhrase p >> printNl
@@ -515,29 +519,29 @@ printHeader me lvl (Header p)
 
 
 --------------------------------------------------------------------------------
-printParagraph :: MarkdownEnv -> Paragraph -> Print ()
-printParagraph me paragraph = do
-    sequence_ $ intersperse printBrkSp (map (printSentence me) paragraph)
+printParagraph :: MarkdownOptions -> Paragraph -> Print ()
+printParagraph mo paragraph = do
+    sequence_ $ intersperse printBrkSp (map (printSentence mo) paragraph)
     printNl
 
 
 --------------------------------------------------------------------------------
-printOrderedList :: MarkdownEnv -> [Phrase] -> Print ()
-printOrderedList mc phrases = forM_ (zip [1 :: Int .. ] phrases) $ \(i, p) ->
-    printShow i >> printText ". " >> printPhrase mc p >> printNl
+printOrderedList :: MarkdownOptions -> [Phrase] -> Print ()
+printOrderedList mo phrases = forM_ (zip [1 :: Int .. ] phrases) $ \(i, p) ->
+    printShow i >> printText ". " >> printPhrase mo p >> printNl
 
 
 --------------------------------------------------------------------------------
-printUnorderedList :: MarkdownEnv -> [Phrase] -> Print ()
-printUnorderedList mc phrases = forM_ phrases $ \p ->
-    printText "- " >> printPhrase mc p >> printNl
+printUnorderedList :: MarkdownOptions -> [Phrase] -> Print ()
+printUnorderedList mo phrases = forM_ phrases $ \p ->
+    printText "- " >> printPhrase mo p >> printNl
 
 
 --------------------------------------------------------------------------------
-printSentence :: MarkdownEnv -> Sentence -> Print ()
-printSentence mc = printStream printMarkup
+printSentence :: MarkdownOptions -> Sentence -> Print ()
+printSentence mo = printStream printMarkup
   where
-    MarkdownOptions {..} = meOptions mc
+    MarkdownOptions {..} = mo
 
     printMarkup (PlainM t) = printText t
     printMarkup (ItalicM m)
@@ -559,7 +563,7 @@ printSentence mc = printStream printMarkup
 
 
 --------------------------------------------------------------------------------
-printPhrase :: MarkdownEnv -> Phrase -> Print ()
+printPhrase :: MarkdownOptions -> Phrase -> Print ()
 printPhrase = printSentence
 
 

@@ -4,8 +4,7 @@
 
 
 --------------------------------------------------------------------------------
-import           Control.Monad.Reader         (ReaderT, ask, local, runReaderT)
-import           Control.Monad.Trans          (liftIO)
+import           Control.Monad.Reader         (ReaderT, ask, runReaderT)
 import qualified Data.ByteString.Char8        as BC
 import           Data.Maybe                   (fromMaybe)
 import qualified Data.Text                    as T
@@ -22,7 +21,6 @@ import qualified System.IO                    as IO
 
 --------------------------------------------------------------------------------
 import           LoremMarkdownum.App
-import           LoremMarkdownum.Gen
 import           LoremMarkdownum.Gen.Markdown
 import           LoremMarkdownum.Print
 import qualified LoremMarkdownum.Web.Views    as Views
@@ -34,6 +32,7 @@ data Config = Config
     , cBindPort    :: Int
     , cDataDir     :: FilePath
     , cStaticDir   :: FilePath
+    , cRev         :: String
     } deriving (Show)
 
 
@@ -44,10 +43,11 @@ configFromEnv = Config
     <*> (maybe 8000 read       <$> lookupEnv "LOREM_MARKDOWNUM_BIND_PORT")
     <*> (fromMaybe "data"      <$> lookupEnv "LOREM_MARKDOWNUM_DATA_DIR")
     <*> (fromMaybe "static"    <$> lookupEnv "LOREM_MARKDOWNUM_STATIC_DIR")
+    <*> (fromMaybe "dirty"     <$> lookupEnv "LOREM_MARKDOWNUM_REV")
 
 
 --------------------------------------------------------------------------------
-type AppM a = ReaderT AppEnv Snap a
+type AppM a = ReaderT MarkdownModel Snap a
 
 
 --------------------------------------------------------------------------------
@@ -60,53 +60,57 @@ main = do
             Snap.setAccessLog (Snap.ConfigIoLog $ BC.hPutStrLn IO.stderr) $
             Snap.setErrorLog (Snap.ConfigIoLog $ BC.hPutStrLn IO.stderr) $
             Snap.defaultConfig
-    appEnv <- readDataFiles (cDataDir config)
-    Snap.httpServe snapConfig $ runReaderT (app config) appEnv
+    model <- loadMarkdownModel (cDataDir config)
+    Snap.httpServe snapConfig $ runReaderT (app config) model
 
 
 --------------------------------------------------------------------------------
 app :: Config -> AppM ()
-app config = Snap.route
-    [ ("",                      Snap.ifTop index)
-    , ("markdown.txt",          markdown)
-    , ("markdown-html.html",    markdownHtml)
-    , ("lorem-markdownum.css",  Snap.serveFile $ cStaticDir config </> "lorem-markdownum.css")
-    , ("lorem-markdownum.js",   Snap.serveFile $ cStaticDir config </> "lorem-markdownum.js")
-    ]
+app config = do
+    Snap.modifyResponse $
+        Snap.setHeader "X-Revision" $ T.encodeUtf8 $ T.pack (cRev config)
+    Snap.route
+        [ ("",                      Snap.ifTop index)
+        , ("markdown.txt",          markdown)
+        , ("markdown-html.html",    markdownHtml)
+        , ("lorem-markdownum.css",  Snap.serveFile $ cStaticDir config </> "lorem-markdownum.css")
+        , ("lorem-markdownum.js",   Snap.serveFile $ cStaticDir config </> "lorem-markdownum.js")
+        ]
 
 
 --------------------------------------------------------------------------------
 index :: AppM ()
 index = do
-    (mc, markdownState) <- ask
-    pc <- unAppOptionsParser parsePrintOptions
-    m  <- liftIO $ runGenIO $ runMarkdownGen genMarkdown mc markdownState
-    Snap.blaze $ Views.index pc mc m
+    model <- ask
+    mo    <- unAppOptionsParser parseMarkdownOptions
+    po    <- unAppOptionsParser parsePrintOptions
+    m     <- generateMarkdown model mo
+    Snap.blaze $ Views.index po mo m
 
 
 --------------------------------------------------------------------------------
 markdown :: AppM ()
 markdown = do
-    (_, markdownState) <- ask
-    mc                 <- getMarkdownEnv
-    pc                 <- unAppOptionsParser parsePrintOptions
-    m                  <- local (\_-> (mc, markdownState)) appGenMarkdown
+    model <- ask
+    mo    <- unAppOptionsParser parseMarkdownOptions
+    po    <- unAppOptionsParser parsePrintOptions
+    m     <- generateMarkdown model mo
     Snap.modifyResponse $ Snap.setContentType "text/plain"
 
     -- This allows the resource to be fetched using the Fetch API.
     Snap.modifyResponse $ Snap.setHeader "Access-Control-Allow-Origin" "*"
 
-    Snap.writeLazyText $ runPrintWith pc $ printMarkdown mc m
+    Snap.writeLazyText $ runPrintWith po $ printMarkdown mo m
 
 
 --------------------------------------------------------------------------------
 markdownHtml :: AppM ()
 markdownHtml = do
-    (_, markdownState) <- ask
-    mc                 <- getMarkdownEnv
-    pc                 <- unAppOptionsParser parsePrintOptions
-    m                  <- local (\_ -> (mc, markdownState)) appGenMarkdown
-    Snap.blaze $ Views.markdownHtml pc mc m
+    model <- ask
+    mo    <- unAppOptionsParser parseMarkdownOptions
+    po    <- unAppOptionsParser parsePrintOptions
+    m     <- generateMarkdown model mo
+    Snap.blaze $ Views.markdownHtml po mo m
 
 
 --------------------------------------------------------------------------------
@@ -140,11 +144,3 @@ newtype AppOptionsParser a = AppOptionsParser {unAppOptionsParser :: AppM a}
 instance OptionsParser AppOptionsParser where
     getBoolOption = AppOptionsParser . getBoolParam
     getIntOption  = AppOptionsParser . getIntParam
-
-
---------------------------------------------------------------------------------
-getMarkdownEnv :: AppM MarkdownEnv
-getMarkdownEnv = do
-    (mc, _) <- ask
-    mo      <- unAppOptionsParser parseMarkdownOptions
-    return mc { meOptions = mo }

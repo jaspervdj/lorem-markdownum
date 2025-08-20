@@ -36,7 +36,10 @@
                 "LOREM_MARKDOWNUM_STATIC_DIR=/usr/share/lorem-markdownum/static"
                 "LOREM_MARKDOWNUM_BIND_ADDRESS=0.0.0.0"
                 "LOREM_MARKDOWNUM_BIND_PORT=80"
-              ];
+              ] ++ (if inputs.self ? rev then
+                [ "LOREM_MARKDOWNUM_REV=${inputs.self.rev}" ]
+              else
+                [ ]);
             };
           };
         };

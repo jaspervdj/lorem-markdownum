@@ -2,8 +2,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
 module LoremMarkdownum.Print
-    ( PrintConfig (..)
-    , defaultPrintConfig
+    ( PrintOptions (..)
+    , defaultPrintOptions
 
     , Print
     , runPrint
@@ -37,14 +37,14 @@ import qualified Data.Text.Lazy.Builder as TLB
 
 
 --------------------------------------------------------------------------------
-data PrintConfig = PrintConfig
+data PrintOptions = PrintOptions
     { pcWrapCol :: Maybe Int
     } deriving (Show)
 
 
 --------------------------------------------------------------------------------
-defaultPrintConfig :: PrintConfig
-defaultPrintConfig = PrintConfig
+defaultPrintOptions :: PrintOptions
+defaultPrintOptions = PrintOptions
     { pcWrapCol = Just 80
     }
 
@@ -73,11 +73,11 @@ newtype Print a = Print {unPrint :: RWS PrintRead Builder PrintState a}
 
 --------------------------------------------------------------------------------
 runPrint :: Print () -> TL.Text
-runPrint = runPrintWith defaultPrintConfig
+runPrint = runPrintWith defaultPrintOptions
 
 
 --------------------------------------------------------------------------------
-runPrintWith :: PrintConfig -> Print () -> TL.Text
+runPrintWith :: PrintOptions -> Print () -> TL.Text
 runPrintWith config pr =
     let (_, _, bld) = runRWS (unPrint (pr >> printFlush)) printRead printState
     in TLB.toLazyText bld
