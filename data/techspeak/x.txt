@@ -1,5 +1,0 @@
-X86
-XHTML
-XML
-XMP
-XSLT

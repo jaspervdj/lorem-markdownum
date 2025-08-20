@@ -65,9 +65,9 @@ parsePrintOptions =
 --------------------------------------------------------------------------------
 loadMarkdownModel :: FilePath -> IO MarkdownModel
 loadMarkdownModel dataDir = do
-    techspeak     <- concat <$> streamsFromDir (dataDir </> "techspeak")
+    code          <- concat <$> streamsFromDir (dataDir </> "code")
     metamorphoses <- streamsFromDir (dataDir </> "metamorphoses")
-    let codeFreqTree  = FT.fromList $ map T.toLower $ streamElements techspeak
+    let codeFreqTree  = FT.fromList $ map T.toLower $ streamElements code
         wordFrequency = wordFrequencyTreePerLength $ concat metamorphoses
         lengthMarkov  =
             Markov.optimize $ foldr (Markov.feed 2) Markov.empty $
