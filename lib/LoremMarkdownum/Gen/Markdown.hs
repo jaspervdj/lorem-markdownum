@@ -259,8 +259,7 @@ genMarkdown = do
     p1 <- ParagraphB <$> genParagraph
 
     numBlocks <- maybe (randomInt (7, 9)) return . moNumBlocks . meOptions =<< ask
-    skeleton <- genSkeleton
-        (Header <$> genPlainPhrase) genSpecialBlocksPlan numBlocks
+    skeleton <- genSkeleton genHeader genSpecialBlocksPlan numBlocks
 
     let internalLinks = map ("#" <>) $ map headerID $
             biconcatMap pure (const []) skeleton
@@ -408,6 +407,11 @@ genSentenceEnd = sampleFromFrequencies
 --------------------------------------------------------------------------------
 genPhrase :: MonadGen m => MarkdownGen m Phrase
 genPhrase = mapStream PlainM <$> genPlainPhrase
+
+
+--------------------------------------------------------------------------------
+genHeader :: MonadGen m => MarkdownGen m Header
+genHeader = Header . takeWhile tokenIsElement <$> genPlainSentence 4
 
 
 --------------------------------------------------------------------------------
