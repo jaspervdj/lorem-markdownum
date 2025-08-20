@@ -28,7 +28,7 @@ index pc mo markdown = H.docTypeHtml $ do
         H.meta H.! A.name "viewport" H.! A.content "width=device-width, initial-scale=1"
         H.title "Lorem Markdownum"
         H.link ! A.rel "stylesheet" ! A.type_ "text/css" ! A.href "lorem-markdownum.css"
-        H.script ! A.type_ "text/javascript" ! A.src "lorem-markdownum.js"  $ ""
+        H.script ! A.type_ "text/javascript" ! A.src "lorem-markdownum.js?v=1"  $ ""
 
     H.body $ do
         H.header "Lorem Markdownum"
