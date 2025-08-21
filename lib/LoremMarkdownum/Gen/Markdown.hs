@@ -73,6 +73,7 @@ data MarkdownOptions = MarkdownOptions
     , moNoQuotes         :: Bool
     , moNoLists          :: Bool
     , moNoInlineMarkup   :: Bool
+    , moNoInlineCode     :: Bool
     , moReferenceLinks   :: Bool
     , moUnderlineHeaders :: Bool
     , moUnderscoreEm     :: Bool
@@ -95,7 +96,8 @@ data MarkdownModel = MarkdownModel
 --------------------------------------------------------------------------------
 defaultMarkdownOptions :: MarkdownOptions
 defaultMarkdownOptions = MarkdownOptions
-    False False False False False False False False False Nothing False Nothing
+    False False False False False False False False False False Nothing False
+    Nothing
 
 
 --------------------------------------------------------------------------------
@@ -428,6 +430,7 @@ genMarkup = go True
     go False (Element x : xs) = (Element (PlainM x) :) <$> go True xs
     go True (Element x : xs) = do
         linker <- genLink
+        mo <- meOptions <$> ask
         oneOfFrequencies $
             [ (,) 60 $ (Element (PlainM x) :) <$> go True xs
             , (,) 1 $ do
@@ -439,10 +442,12 @@ genMarkup = go True
             , (,) 1 $ do
                 (elements, xs') <- aFew x xs
                 (Element (ItalicM elements) :) <$> go False xs'
-            , (,) 1 $ do
+            ] ++
+            [ (,) 1 $ do
                 codeConfig <- mmCodeConfig . meModel <$> ask
                 Identifier ident <- runCodeGen genIdentifier codeConfig
                 ([Element (PlainM x), Element (CodeM ident)] ++) <$> go False xs
+            | not (moNoInlineCode mo)
             ] ++
             case linker of
                 Nothing -> []

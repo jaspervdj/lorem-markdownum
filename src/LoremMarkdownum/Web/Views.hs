@@ -63,6 +63,7 @@ index pc mo markdown = H.docTypeHtml $ do
                             checkbox (moNoHeaders mo)        "no-headers"        "No headers"
                             checkbox (moNoCode mo)           "no-code"           "No code snippets"
                             checkbox (moNoInlineMarkup mo)   "no-inline-markup"  "No inline markup"
+                            checkbox (moNoInlineCode mo)     "no-inline-code"    "No inline code"
                             checkbox (moNoQuotes mo)         "no-quotes"         "No blockquotes"
                             checkbox (moNoLists mo)          "no-lists"          "No lists"
                             checkbox (isNothing $ pcWrapCol pc) "no-wrapping"    "No wrapping"

@@ -34,26 +34,10 @@ document.addEventListener("DOMContentLoaded", function() {
         dst.style.height = "0px";
         loading.style.display = "block";
 
-        const inputIds = [
-            "no-headers",
-            "no-code",
-            "no-quotes",
-            "no-lists",
-            "no-inline-markup",
-            "reference-links",
-            "underline-headers",
-            "underscore-em",
-            "underscore-strong",
-            "num-blocks",
-            "no-wrapping",
-            "fenced-code-blocks",
-            "seed"
-        ];
-
         // Form processing
         const query = {};
-        for (const inputId of inputIds) {
-            const input = document.getElementById(inputId);
+        const inputs = document.getElementById("advanced").querySelectorAll("input");
+        for (const input of inputs) {
             if (input.type === "checkbox") {
                 if (input.checked) {
                     query[input.name] = "on";

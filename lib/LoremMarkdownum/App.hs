@@ -44,6 +44,7 @@ parseMarkdownOptions = MarkdownOptions
     <*> getBoolOption                           "no-quotes"
     <*> getBoolOption                           "no-lists"
     <*> getBoolOption                           "no-inline-markup"
+    <*> getBoolOption                           "no-inline-code"
     <*> getBoolOption                           "reference-links"
     <*> getBoolOption                           "underline-headers"
     <*> getBoolOption                           "underscore-em"

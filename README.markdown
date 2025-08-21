@@ -45,6 +45,7 @@ These are the supported parameters:
 - `no-quotes`
 - `no-lists`
 - `no-inline-markup`
+- `no-inline-code`
 - `reference-links`
 - `underline-headers`
 - `underscore-em`
