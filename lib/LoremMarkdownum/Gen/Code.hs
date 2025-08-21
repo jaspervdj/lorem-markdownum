@@ -7,6 +7,7 @@ module LoremMarkdownum.Gen.Code
     , runCodeGen
 
     , Code
+    , Identifier (..)
 
     , genCode
     , genStatement

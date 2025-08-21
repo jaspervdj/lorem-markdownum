@@ -227,6 +227,7 @@ data Markup
     | ItalicM (Stream Markup)
     | BoldM   (Stream Markup)
     | LinkM   (Stream Markup) Text
+    | CodeM   Text
     deriving (Eq, Ord, Show)
 
 
@@ -423,19 +424,40 @@ genPlainPhrase = takeWhile tokenIsElement <$> genPlainSentence 7
 genMarkup :: MonadGen m => Stream Text -> MarkdownGen m (Stream Markup)
 genMarkup = go True
   where
-    go _     []               = return []
-    go allow (Element x : xs) = do
-        applyMarkup <- (allow &&) <$> randomBool 1 20
-        if not applyMarkup
-            then (Element (PlainM x) :) <$> go True xs
-            else do
-                len    <- randomInt (0, 2)
-                let (inc, xs') = takeWhileMax tokenIsElement len xs
-                    elements   = map (Element . PlainM) $ x : streamElements inc
-                markup <- genMarkupConstructor elements
-                (Element markup :) <$> go False xs'
-    go allow (x         : xs) =
-        (maybeToList (castToken x) ++) <$> go allow xs
+    go _allowMarkup [] = return []
+    go False (Element x : xs) = (Element (PlainM x) :) <$> go True xs
+    go True (Element x : xs) = do
+        linker <- genLink
+        oneOfFrequencies $
+            [ (,) 60 $ (Element (PlainM x) :) <$> go True xs
+            , (,) 1 $ do
+                (elements, xs') <- aFew x xs
+                (Element (ItalicM elements) :) <$> go False xs'
+            , (,) 1 $ do
+                (elements, xs') <- aFew x xs
+                (Element (BoldM elements) :) <$> go False xs'
+            , (,) 1 $ do
+                (elements, xs') <- aFew x xs
+                (Element (ItalicM elements) :) <$> go False xs'
+            , (,) 1 $ do
+                codeConfig <- mmCodeConfig . meModel <$> ask
+                Identifier ident <- runCodeGen genIdentifier codeConfig
+                ([Element (PlainM x), Element (CodeM ident)] ++) <$> go False xs
+            ] ++
+            case linker of
+                Nothing -> []
+                Just l -> pure $ (,) 1 $ do
+                    link <- l
+                    (elements, xs') <- aFew x xs
+                    (Element (LinkM elements link) :) <$> go False xs'
+    go allowMarkup (x : xs) =
+        (maybeToList (castToken x) ++) <$> go allowMarkup xs
+
+    aFew x xs = do
+        len <- randomInt (0, 2)
+        let (inc, xs') = takeWhileMax tokenIsElement len xs
+            elements   = map (Element . PlainM) $ x : streamElements inc
+        pure (elements, xs')
 
 
 --------------------------------------------------------------------------------
@@ -445,21 +467,6 @@ takeWhileMax _ _ [] = ([], [])
 takeWhileMax p i (x : xs)
     | p x           = let (y, z) = takeWhileMax p (i - 1) xs in (x : y, z)
     | otherwise     = ([], x : xs)
-
-
---------------------------------------------------------------------------------
-genMarkupConstructor :: MonadGen m => Stream Markup -> MarkdownGen m Markup
-genMarkupConstructor m = do
-    linker <- genLink
-    oneOf $
-        [ return $ ItalicM m
-        , return $ BoldM m
-        ] ++
-        case linker of
-            Nothing -> []
-            Just l -> pure $ do
-                link <- l
-                pure $ LinkM m link
 
 
 --------------------------------------------------------------------------------
@@ -564,6 +571,7 @@ printSentence mo = printStream printMarkup
         | otherwise        =
             printText "[" >> printStream printMarkup m >> printText "](" >>
             printText l >> printText ")"
+    printMarkup (CodeM t) = printText "`" >> printText t >> printText "`"
 
 
 --------------------------------------------------------------------------------
@@ -636,3 +644,4 @@ previewMarkup (PlainM t)  = H.toHtml t
 previewMarkup (ItalicM s) = H.em $ previewSentence s
 previewMarkup (BoldM s)   = H.strong $ previewSentence s
 previewMarkup (LinkM s h) = H.a ! A.href (H.toValue h) $ previewSentence s
+previewMarkup (CodeM t)   = H.code $ H.toHtml t
