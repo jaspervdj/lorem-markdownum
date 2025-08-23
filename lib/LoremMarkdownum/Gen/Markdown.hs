@@ -225,11 +225,11 @@ type Phrase = Stream Markup
 
 --------------------------------------------------------------------------------
 data Markup
-    = PlainM  Text
-    | ItalicM (Stream Markup)
-    | BoldM   (Stream Markup)
-    | LinkM   (Stream Markup) Text
-    | CodeM   Text
+    = PlainM    Text
+    | EmphasisM (Stream Markup)
+    | StrongM   (Stream Markup)
+    | LinkM     (Stream Markup) Text
+    | CodeM     Text
     deriving (Eq, Ord, Show)
 
 
@@ -435,13 +435,10 @@ genMarkup = go True
             [ (,) 60 $ (Element (PlainM x) :) <$> go True xs
             , (,) 1 $ do
                 (elements, xs') <- aFew x xs
-                (Element (ItalicM elements) :) <$> go False xs'
+                (Element (EmphasisM elements) :) <$> go False xs'
             , (,) 1 $ do
                 (elements, xs') <- aFew x xs
-                (Element (BoldM elements) :) <$> go False xs'
-            , (,) 1 $ do
-                (elements, xs') <- aFew x xs
-                (Element (ItalicM elements) :) <$> go False xs'
+                (Element (StrongM elements) :) <$> go False xs'
             ] ++
             [ (,) 1 $ do
                 codeConfig <- mmCodeConfig . meModel <$> ask
@@ -560,12 +557,12 @@ printSentence mo = printStream printMarkup
     MarkdownOptions {..} = mo
 
     printMarkup (PlainM t) = printText t
-    printMarkup (ItalicM m)
+    printMarkup (EmphasisM m)
         | moUnderscoreEm =
             printText "_" >> printStream printMarkup m >> printText "_"
         | otherwise         =
             printText "*" >> printStream printMarkup m >> printText "*"
-    printMarkup (BoldM  m)
+    printMarkup (StrongM  m)
         | moUnderscoreStrong =
             printText "__" >> printStream printMarkup m >> printText "__"
         | otherwise             =
@@ -645,8 +642,8 @@ previewPhrase = previewSentence
 
 --------------------------------------------------------------------------------
 previewMarkup :: Markup -> Html
-previewMarkup (PlainM t)  = H.toHtml t
-previewMarkup (ItalicM s) = H.em $ previewSentence s
-previewMarkup (BoldM s)   = H.strong $ previewSentence s
-previewMarkup (LinkM s h) = H.a ! A.href (H.toValue h) $ previewSentence s
-previewMarkup (CodeM t)   = H.code $ H.toHtml t
+previewMarkup (PlainM t)    = H.toHtml t
+previewMarkup (EmphasisM s) = H.em $ previewSentence s
+previewMarkup (StrongM s)   = H.strong $ previewSentence s
+previewMarkup (LinkM s h)   = H.a ! A.href (H.toValue h) $ previewSentence s
+previewMarkup (CodeM t)     = H.code $ H.toHtml t
