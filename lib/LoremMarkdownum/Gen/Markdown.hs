@@ -3,7 +3,11 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module LoremMarkdownum.Gen.Markdown
-    ( MarkdownOptions (..)
+    ( HeaderOption (..)
+    , EmphasisOption (..)
+    , StrongOption (..)
+    , CodeBlockOption (..)
+    , MarkdownOptions (..)
     , MarkdownModel (..)
     , defaultMarkdownOptions
 
@@ -66,20 +70,49 @@ import           LoremMarkdownum.Token
 
 
 --------------------------------------------------------------------------------
+data HeaderOption
+    = HeaderHash
+    | HeaderUnderline
+    | HeaderOff
+    deriving (Bounded, Enum, Eq, Show)
+
+
+--------------------------------------------------------------------------------
+data EmphasisOption
+    = EmphasisAsterisk
+    | EmphasisUnderscore
+    | EmphasisOff
+    deriving (Bounded, Enum, Eq, Show)
+
+
+--------------------------------------------------------------------------------
+data StrongOption
+    = StrongAsterisk
+    | StrongUnderscore
+    | StrongOff
+    deriving (Bounded, Enum, Eq, Show)
+
+
+--------------------------------------------------------------------------------
+data CodeBlockOption
+    = CodeBlockIndent
+    | CodeBlockFenced
+    | CodeBlockOff
+    deriving (Bounded, Enum, Eq, Show)
+
+
+--------------------------------------------------------------------------------
 -- | MarkdownOptions can be tweaked for each invokation.
 data MarkdownOptions = MarkdownOptions
-    { moNoHeaders        :: Bool
-    , moNoCode           :: Bool
+    { moHeaders          :: HeaderOption
+    , moCodeBlocks       :: CodeBlockOption
     , moNoQuotes         :: Bool
     , moNoLists          :: Bool
-    , moNoInlineMarkup   :: Bool
+    , moEmphasis         :: EmphasisOption
+    , moStrong           :: StrongOption
     , moNoInlineCode     :: Bool
     , moReferenceLinks   :: Bool
-    , moUnderlineHeaders :: Bool
-    , moUnderscoreEm     :: Bool
-    , moUnderscoreStrong :: Bool
     , moNumBlocks        :: Maybe Int
-    , moFencedCodeBlocks :: Bool
     , moSeed             :: Maybe Int
     } deriving (Show)
 
@@ -96,8 +129,8 @@ data MarkdownModel = MarkdownModel
 --------------------------------------------------------------------------------
 defaultMarkdownOptions :: MarkdownOptions
 defaultMarkdownOptions = MarkdownOptions
-    False False False False False False False False False False Nothing False
-    Nothing
+    HeaderHash CodeBlockIndent False False EmphasisAsterisk StrongAsterisk
+    False False Nothing Nothing
 
 
 --------------------------------------------------------------------------------
@@ -275,7 +308,7 @@ genMarkdown = do
             True
             skeleton
 
-    noHeaders <- asks $ moNoHeaders . meOptions
+    noHeaders <- asks $ (== HeaderOff) . moHeaders . meOptions
     return $ (if noHeaders then removeHeaders else id) $
         skeletonToMarkdown hollow
   where
@@ -294,7 +327,7 @@ genMarkdown = do
 -- TODO (jaspervdj: Not sure about the name
 genSpecialBlock :: MonadGen m => MarkdownGen m Block
 genSpecialBlock = do
-    noCode   <- asks $ moNoCode   . meOptions
+    noCode   <- asks $ (== CodeBlockOff) . moCodeBlocks . meOptions
     noQuotes <- asks $ moNoQuotes . meOptions
     noLists  <- asks $ moNoLists  . meOptions
     let freqs =
@@ -375,12 +408,7 @@ genRegularSentence = randomInt (10, 20) >>= genSentence
 
 --------------------------------------------------------------------------------
 genSentence :: MonadGen m => Int -> MarkdownGen m Sentence
-genSentence n = do
-    noInlineMarkup <- moNoInlineMarkup . meOptions <$> ask
-    sentence       <- genPlainSentence n
-    if noInlineMarkup
-        then return (map (fmap PlainM) sentence)
-        else genMarkup sentence
+genSentence n = genPlainSentence n >>= genMarkup
 
 
 --------------------------------------------------------------------------------
@@ -433,12 +461,16 @@ genMarkup = go True
         mo <- meOptions <$> ask
         oneOfFrequencies $
             [ (,) 60 $ (Element (PlainM x) :) <$> go True xs
-            , (,) 1 $ do
+            ] ++
+            [ (,) 1 $ do
                 (elements, xs') <- aFew x xs
                 (Element (EmphasisM elements) :) <$> go False xs'
-            , (,) 1 $ do
+            | moEmphasis mo /= EmphasisOff
+            ] ++
+            [ (,) 1 $ do
                 (elements, xs') <- aFew x xs
                 (Element (StrongM elements) :) <$> go False xs'
+            | moStrong mo /= StrongOff
             ] ++
             [ (,) 1 $ do
                 codeConfig <- mmCodeConfig . meModel <$> ask
@@ -509,25 +541,27 @@ printBlock mo (HeaderB lvl h)    = printHeader mo lvl h
 printBlock mo (ParagraphB p)     = printParagraph mo p
 printBlock mo (OrderedListB l)   = printOrderedList mo l
 printBlock mo (UnorderedListB l) = printUnorderedList mo l
-printBlock mo  (CodeB c)
-    | moFencedCodeBlocks mo = do
+printBlock mo  (CodeB c) = case moCodeBlocks mo of
+    CodeBlockIndent -> printIndent4 (printCode c)
+    CodeBlockFenced -> do
         printText "```" >> printNl
         printCode c
         printText "```" >> printNl
-    | otherwise                  = printIndent4 (printCode c)
+    CodeBlockOff -> pure ()
 printBlock mo (QuoteB p)         = printWrapIndent "> " $
     printText "> " >> printParagraph mo p
 
 
 --------------------------------------------------------------------------------
 printHeader :: MarkdownOptions -> Int -> Header -> Print ()
-printHeader mo lvl (Header p)
-    | moUnderlineHeaders mo && lvl <= 2 = do
+printHeader mo lvl (Header p) = case moHeaders mo of
+    HeaderOff -> pure ()
+    HeaderUnderline | lvl <= 2 -> do
         let len  = runPrintLength (printPlainPhrase p)
             char = if lvl <= 1 then "=" else "-"
         printPlainPhrase p >> printNl
         printText (T.replicate len char) >> printNl
-    | otherwise                       =
+    _ ->
         printText (T.replicate lvl "#" <> " ") >> printPlainPhrase p >> printNl
 
 
@@ -557,15 +591,17 @@ printSentence mo = printStream printMarkup
     MarkdownOptions {..} = mo
 
     printMarkup (PlainM t) = printText t
-    printMarkup (EmphasisM m)
-        | moUnderscoreEm =
+    printMarkup (EmphasisM m) = case moEmphasis of
+        EmphasisOff -> pure ()
+        EmphasisUnderscore ->
             printText "_" >> printStream printMarkup m >> printText "_"
-        | otherwise         =
+        EmphasisAsterisk ->
             printText "*" >> printStream printMarkup m >> printText "*"
-    printMarkup (StrongM  m)
-        | moUnderscoreStrong =
+    printMarkup (StrongM  m) = case moStrong of
+        StrongOff -> pure ()
+        StrongUnderscore ->
             printText "__" >> printStream printMarkup m >> printText "__"
-        | otherwise             =
+        StrongAsterisk ->
             printText "**" >> printStream printMarkup m >> printText "**"
     printMarkup (LinkM m l)
         | moReferenceLinks =

@@ -5,7 +5,6 @@ import           Control.Monad.Reader         (Reader, ask, runReader)
 import qualified Data.Text                    as T
 import qualified Data.Text.Lazy.IO            as TL
 import           System.Environment           (getArgs)
-import           Text.Read                    (readMaybe)
 
 
 --------------------------------------------------------------------------------
@@ -23,14 +22,14 @@ newtype CLIOptionsParser a
 
 --------------------------------------------------------------------------------
 instance OptionsParser CLIOptionsParser where
-    getBoolOption name = CLIOptionsParser $ do
+    getFlag name = CLIOptionsParser $ do
         args <- ask
         pure $ any (== ("--" <> name)) args
 
-    getIntOption name = CLIOptionsParser $ do
+    getOption name = CLIOptionsParser $ do
         args <- ask
         pure $ case break (== ("--" <> name)) args of
-            (_, _ : val : _) -> readMaybe $ T.unpack val
+            (_, _ : val : _) -> Just val
             _                -> Nothing
 
 

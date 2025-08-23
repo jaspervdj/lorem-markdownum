@@ -36,8 +36,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Form processing
         const query = {};
-        const inputs = document.getElementById("advanced").querySelectorAll("input");
-        for (const input of inputs) {
+        const inputForm = document.getElementById("advanced");
+        for (const input of inputForm.querySelectorAll("input")) {
             if (input.type === "checkbox") {
                 if (input.checked) {
                     query[input.name] = "on";
@@ -46,6 +46,17 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (input.value.length > 0) {
                     query[input.name] = input.value;
                 }
+            }
+        }
+        for (const input of inputForm.querySelectorAll("select")) {
+            let def;
+            for (const option of input.options) {
+                if (option.getAttribute("selected")) {
+                    def = option.value;  // Find default.
+                }
+            }
+            if (input.value !== def) {
+                query[input.name] = input.value;
             }
         }
 

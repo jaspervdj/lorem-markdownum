@@ -84,10 +84,8 @@ index :: AppM ()
 index = do
     model <- ask
     opts <- unAppOptionsParser parseOptions
-    let mopts = toMarkdownOptions opts
-        popts = toPrintOptions opts
-    m <- generateMarkdown model mopts
-    Snap.blaze $ Views.index popts mopts m
+    m <- generateMarkdown model (toMarkdownOptions opts)
+    Snap.blaze $ Views.index opts m
 
 
 --------------------------------------------------------------------------------
@@ -112,31 +110,8 @@ markdownHtml = do
     model <- ask
     opts <- unAppOptionsParser parseOptions
     let mopts = toMarkdownOptions opts
-        popts = toPrintOptions opts
     m <- generateMarkdown model mopts
-    Snap.blaze $ Views.markdownHtml popts mopts m
-
-
---------------------------------------------------------------------------------
-getBoolParam :: T.Text -> AppM Bool
-getBoolParam name = do
-    param <- Snap.getParam $ T.encodeUtf8 name
-    case param of
-        -- Browers usually send nothing when the checkbox is turned off.
-        Just "true"  -> return True
-        Just "false" -> return False
-        Just "on"    -> return True
-        Just "off"   -> return False
-        _            -> return False
-
-
---------------------------------------------------------------------------------
-getIntParam :: T.Text -> AppM (Maybe Int)
-getIntParam name = do
-    param <- Snap.getParam $ T.encodeUtf8 name
-    case fmap (reads . BC.unpack) param of
-        Just [(x, "")] -> return $ Just x
-        _              -> return Nothing
+    Snap.blaze $ Views.markdownHtml opts m
 
 
 --------------------------------------------------------------------------------
@@ -146,5 +121,15 @@ newtype AppOptionsParser a = AppOptionsParser {unAppOptionsParser :: AppM a}
 
 --------------------------------------------------------------------------------
 instance OptionsParser AppOptionsParser where
-    getBoolOption = AppOptionsParser . getBoolParam
-    getIntOption  = AppOptionsParser . getIntParam
+    getFlag key = AppOptionsParser $ do
+        param <- Snap.getParam $ T.encodeUtf8 key
+        case param of
+            -- Browers usually send nothing when the checkbox is turned off.
+            Just "true"  -> return True
+            Just "false" -> return False
+            Just "on"    -> return True
+            Just "off"   -> return False
+            _            -> return False
+
+    getOption = AppOptionsParser .
+        fmap (fmap T.decodeUtf8) . Snap.getParam . T.encodeUtf8
