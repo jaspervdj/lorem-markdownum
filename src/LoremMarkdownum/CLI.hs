@@ -11,6 +11,7 @@ import           Text.Read                    (readMaybe)
 --------------------------------------------------------------------------------
 import           LoremMarkdownum.App
 import           LoremMarkdownum.Gen.Markdown
+import           LoremMarkdownum.Options
 import           LoremMarkdownum.Print        (runPrintWith)
 
 
@@ -37,8 +38,9 @@ instance OptionsParser CLIOptionsParser where
 main :: IO ()
 main = do
     args <- map T.pack <$> getArgs
-    let options = runReader (unCLIOptionsParser parseMarkdownOptions) args
-        pc      = runReader (unCLIOptionsParser parsePrintOptions) args
+    let options = runReader (unCLIOptionsParser parseOptions) args
+        mopts   = toMarkdownOptions options
+        popts   = toPrintOptions options
     model <- loadMarkdownModel "data"
-    markdown <- generateMarkdown model options
-    TL.putStr $ runPrintWith pc (printMarkdown options markdown)
+    markdown <- generateMarkdown model mopts
+    TL.putStr $ runPrintWith popts (printMarkdown mopts markdown)

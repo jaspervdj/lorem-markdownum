@@ -22,6 +22,7 @@ import qualified System.IO                    as IO
 --------------------------------------------------------------------------------
 import           LoremMarkdownum.App
 import           LoremMarkdownum.Gen.Markdown
+import           LoremMarkdownum.Options
 import           LoremMarkdownum.Print
 import qualified LoremMarkdownum.Web.Views    as Views
 
@@ -82,35 +83,38 @@ app config = do
 index :: AppM ()
 index = do
     model <- ask
-    mo    <- unAppOptionsParser parseMarkdownOptions
-    po    <- unAppOptionsParser parsePrintOptions
-    m     <- generateMarkdown model mo
-    Snap.blaze $ Views.index po mo m
+    opts <- unAppOptionsParser parseOptions
+    let mopts = toMarkdownOptions opts
+        popts = toPrintOptions opts
+    m <- generateMarkdown model mopts
+    Snap.blaze $ Views.index popts mopts m
 
 
 --------------------------------------------------------------------------------
 markdown :: AppM ()
 markdown = do
     model <- ask
-    mo    <- unAppOptionsParser parseMarkdownOptions
-    po    <- unAppOptionsParser parsePrintOptions
-    m     <- generateMarkdown model mo
+    opts <- unAppOptionsParser parseOptions
+    let mopts = toMarkdownOptions opts
+        popts = toPrintOptions opts
+    m <- generateMarkdown model mopts
     Snap.modifyResponse $ Snap.setContentType "text/plain"
 
     -- This allows the resource to be fetched using the Fetch API.
     Snap.modifyResponse $ Snap.setHeader "Access-Control-Allow-Origin" "*"
 
-    Snap.writeLazyText $ runPrintWith po $ printMarkdown mo m
+    Snap.writeLazyText $ runPrintWith popts $ printMarkdown mopts m
 
 
 --------------------------------------------------------------------------------
 markdownHtml :: AppM ()
 markdownHtml = do
     model <- ask
-    mo    <- unAppOptionsParser parseMarkdownOptions
-    po    <- unAppOptionsParser parsePrintOptions
-    m     <- generateMarkdown model mo
-    Snap.blaze $ Views.markdownHtml po mo m
+    opts <- unAppOptionsParser parseOptions
+    let mopts = toMarkdownOptions opts
+        popts = toPrintOptions opts
+    m <- generateMarkdown model mopts
+    Snap.blaze $ Views.markdownHtml popts mopts m
 
 
 --------------------------------------------------------------------------------

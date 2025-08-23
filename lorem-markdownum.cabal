@@ -22,6 +22,7 @@ Library
     LoremMarkdownum.Gen.Code
     LoremMarkdownum.Gen.Markdown
     LoremMarkdownum.Markov
+    LoremMarkdownum.Options
     LoremMarkdownum.Print
     LoremMarkdownum.Text.Util
     LoremMarkdownum.Token

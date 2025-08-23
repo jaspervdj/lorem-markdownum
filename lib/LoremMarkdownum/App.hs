@@ -4,11 +4,7 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 module LoremMarkdownum.App
-    ( OptionsParser (..)
-    , parseMarkdownOptions
-    , parsePrintOptions
-
-    , loadMarkdownModel
+    ( loadMarkdownModel
     , generateMarkdown
     ) where
 
@@ -25,42 +21,8 @@ import           LoremMarkdownum.Gen
 import           LoremMarkdownum.Gen.Code
 import           LoremMarkdownum.Gen.Markdown
 import qualified LoremMarkdownum.Markov        as Markov
-import           LoremMarkdownum.Print
 import           LoremMarkdownum.Token
 import           LoremMarkdownum.Token.Parse
-
-
---------------------------------------------------------------------------------
-class Applicative m => OptionsParser m where
-    getBoolOption :: T.Text -> m Bool
-    getIntOption  :: T.Text -> m (Maybe Int)
-
-
---------------------------------------------------------------------------------
-parseMarkdownOptions :: OptionsParser m => m MarkdownOptions
-parseMarkdownOptions = MarkdownOptions
-    <$> getBoolOption                           "no-headers"
-    <*> getBoolOption                           "no-code"
-    <*> getBoolOption                           "no-quotes"
-    <*> getBoolOption                           "no-lists"
-    <*> getBoolOption                           "no-inline-markup"
-    <*> getBoolOption                           "no-inline-code"
-    <*> getBoolOption                           "reference-links"
-    <*> getBoolOption                           "underline-headers"
-    <*> getBoolOption                           "underscore-em"
-    <*> getBoolOption                           "underscore-strong"
-    <*> (fmap (max 1 . min 50) <$> getIntOption "num-blocks")
-    <*> getBoolOption                           "fenced-code-blocks"
-    <*> getIntOption                            "seed"
-
-
---------------------------------------------------------------------------------
-parsePrintOptions :: OptionsParser m => m PrintOptions
-parsePrintOptions =
-    (\noWrapping -> case noWrapping of
-        False -> defaultPrintOptions
-        True  -> defaultPrintOptions {pcWrapCol = Nothing}) <$>
-    getBoolOption "no-wrapping"
 
 
 --------------------------------------------------------------------------------
