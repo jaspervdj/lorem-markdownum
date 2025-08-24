@@ -63,10 +63,11 @@ index opts markdown = H.docTypeHtml $ do
                     H.div ! A.class_ "form-columns" ! A.style "display: flex;" $ do
                         H.div ! A.class_ "labelgrid" $ do
                             H.div ! A.class_ "labelgroup" $ "Blocks"
-                            choice (fromMaybe HeaderHash      $ oHeaders opts)    "headers"     "Headers"
-                            choice (fromMaybe CodeBlockIndent $ oCodeBlocks opts) "code-blocks" "Code blocks"
+                            choice (fromMaybe HeaderHash         $ oHeaders opts)        "headers"         "Headers"
+                            choice (fromMaybe CodeBlockIndent    $ oCodeBlocks opts)     "code-blocks"     "Code blocks"
+                            choice (fromMaybe OrderedListDecimal $ oOrderedLists opts)   "ordered-lists"   "Ordered Lists"
+                            choice (fromMaybe UnorderedListDash  $ oUnorderedLists opts) "unordered-lists" "Unordered Lists"
                             checkbox (oNoQuotes opts)         "no-quotes"         "No blockquotes"
-                            checkbox (oNoLists opts)          "no-lists"          "No lists"
                             H.input ! A.type_ "text" ! A.size "2"
                                 ! A.name "num-blocks" ! A.id "num-blocks"
                                 ! A.class_ "small"
@@ -137,6 +138,8 @@ choice value id' label = do
 markdownHtml :: Options -> Markdown -> Html
 markdownHtml opts md = do
     H.pre ! A.class_ "markdown" $
-        H.toHtml $ runPrintWith (toPrintOptions opts) $
-            printMarkdown (toMarkdownOptions opts) md
-    H.div ! A.class_ "html" ! A.style "display: none;" $ previewMarkdown md
+        H.toHtml $ runPrintWith (toPrintOptions opts) $ printMarkdown mopts md
+    H.div ! A.class_ "html" ! A.style "display: none;" $
+        previewMarkdown mopts md
+  where
+    mopts = toMarkdownOptions opts

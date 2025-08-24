@@ -4,6 +4,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module LoremMarkdownum.Gen.Markdown
     ( HeaderOption (..)
+    , OrderedListOption (..)
+    , UnorderedListOption (..)
     , EmphasisOption (..)
     , StrongOption (..)
     , CodeBlockOption (..)
@@ -78,6 +80,23 @@ data HeaderOption
 
 
 --------------------------------------------------------------------------------
+data OrderedListOption
+    = OrderedListDecimal
+    | OrderedListAlpha
+    | OrderedListRoman
+    | OrderedListOff
+    deriving (Bounded, Enum, Eq, Show)
+
+
+--------------------------------------------------------------------------------
+data UnorderedListOption
+    = UnorderedListDash
+    | UnorderedListAsterisk
+    | UnorderedListOff
+    deriving (Bounded, Enum, Eq, Show)
+
+
+--------------------------------------------------------------------------------
 data EmphasisOption
     = EmphasisAsterisk
     | EmphasisUnderscore
@@ -106,8 +125,9 @@ data CodeBlockOption
 data MarkdownOptions = MarkdownOptions
     { moHeaders          :: HeaderOption
     , moCodeBlocks       :: CodeBlockOption
+    , moOrderedLists     :: OrderedListOption
+    , moUnorderedLists   :: UnorderedListOption
     , moNoQuotes         :: Bool
-    , moNoLists          :: Bool
     , moEmphasis         :: EmphasisOption
     , moStrong           :: StrongOption
     , moNoInlineCode     :: Bool
@@ -129,8 +149,8 @@ data MarkdownModel = MarkdownModel
 --------------------------------------------------------------------------------
 defaultMarkdownOptions :: MarkdownOptions
 defaultMarkdownOptions = MarkdownOptions
-    HeaderHash CodeBlockIndent False False EmphasisAsterisk StrongAsterisk
-    False False Nothing Nothing
+    HeaderHash CodeBlockIndent OrderedListDecimal UnorderedListDash False
+    EmphasisAsterisk StrongAsterisk False False Nothing Nothing
 
 
 --------------------------------------------------------------------------------
@@ -327,15 +347,16 @@ genMarkdown = do
 -- TODO (jaspervdj: Not sure about the name
 genSpecialBlock :: MonadGen m => MarkdownGen m Block
 genSpecialBlock = do
-    noCode   <- asks $ (== CodeBlockOff) . moCodeBlocks . meOptions
-    noQuotes <- asks $ moNoQuotes . meOptions
-    noLists  <- asks $ moNoLists  . meOptions
+    opts <- asks meOptions
+    let code           = moCodeBlocks opts /= CodeBlockOff
+        quotes         = not $ moNoQuotes opts
+        orderedLists   = moOrderedLists opts /= OrderedListOff
+        unorderedLists = moUnorderedLists opts /= UnorderedListOff
     let freqs =
-            [ (if noLists  then 0 else 1, OrderedListB   <$> genOrderedList)
-            , (if noLists  then 0 else 1, UnorderedListB <$> genUnorderedList)
-            , (if noCode   then 0 else 2, CodeB          <$> genCodeBlock)
-            , (if noQuotes then 0 else 1, QuoteB         <$> genParagraph)
-            ]
+            [ (1, OrderedListB   <$> genOrderedList)   | orderedLists   ] ++
+            [ (1, UnorderedListB <$> genUnorderedList) | unorderedLists ] ++
+            [ (2, CodeB          <$> genCodeBlock)     | code           ] ++
+            [ (1, QuoteB         <$> genParagraph)     | quotes         ]
     if sum (map fst freqs) <= 0
         then ParagraphB <$> genParagraph
         else oneOfFrequencies freqs
@@ -574,14 +595,30 @@ printParagraph mo paragraph = do
 
 --------------------------------------------------------------------------------
 printOrderedList :: MarkdownOptions -> [Phrase] -> Print ()
-printOrderedList mo phrases = forM_ (zip [1 :: Int .. ] phrases) $ \(i, p) ->
-    printShow i >> printText ". " >> printPhrase mo p >> printNl
+printOrderedList _  []      = pure ()
+printOrderedList mo phrases = forM_ (zip indices phrases) $ \(i, p) -> do
+    printText (T.justifyLeft longest ' ' i) >> printText " "
+    printPhrase mo p >> printNl
+  where
+    longest = maximum $ map T.length $ take (length phrases) indices
+    indices = map (\i -> T.pack i <> ".") $ case moOrderedLists mo of
+        OrderedListOff     -> []
+        OrderedListDecimal -> map show [1 :: Int ..]
+        OrderedListAlpha   -> map pure ['a' .. 'z']
+        OrderedListRoman   ->
+            let ten = ["i", "ii", "iii", "iv", "v", "vi", "vii", "vii", "x"]
+            in ten ++ map ('x' :) ten
 
 
 --------------------------------------------------------------------------------
 printUnorderedList :: MarkdownOptions -> [Phrase] -> Print ()
 printUnorderedList mo phrases = forM_ phrases $ \p ->
-    printText "- " >> printPhrase mo p >> printNl
+    printText prefix >> printPhrase mo p >> printNl
+  where
+    prefix = case moUnorderedLists mo of
+        UnorderedListDash     -> "- "
+        UnorderedListAsterisk -> "* "
+        UnorderedListOff      -> mempty
 
 
 --------------------------------------------------------------------------------
@@ -623,13 +660,13 @@ printPlainPhrase = printStream printText
 
 
 --------------------------------------------------------------------------------
-previewMarkdown :: Markdown -> Html
-previewMarkdown = mconcat . map previewBlock
+previewMarkdown :: MarkdownOptions -> Markdown -> Html
+previewMarkdown mopts = mconcat . map (previewBlock mopts)
 
 
 --------------------------------------------------------------------------------
-previewBlock :: Block -> Html
-previewBlock (HeaderB lvl h@(Header pf))  =
+previewBlock :: MarkdownOptions -> Block -> Html
+previewBlock _ (HeaderB lvl h@(Header pf)) =
     el H.! A.id (H.toValue $ headerID h) $ previewPlainPhrase pf
   where
     el = case lvl of
@@ -639,11 +676,11 @@ previewBlock (HeaderB lvl h@(Header pf))  =
         4 -> H.h4
         5 -> H.h5
         _ -> H.h6
-previewBlock (ParagraphB p)     = previewParagraph p
-previewBlock (OrderedListB l)   = previewOrderedList l
-previewBlock (UnorderedListB l) = previewUnorderedList l
-previewBlock (CodeB c)          = H.pre $ H.toHtml $ runPrint $ printCode c
-previewBlock (QuoteB q)         = H.blockquote $ previewParagraph q
+previewBlock _ (ParagraphB p) = previewParagraph p
+previewBlock mopts (OrderedListB l) = previewOrderedList mopts l
+previewBlock _ (UnorderedListB l) = previewUnorderedList l
+previewBlock _ (CodeB c) = H.pre $ H.toHtml $ runPrint $ printCode c
+previewBlock _ (QuoteB q) = H.blockquote $ previewParagraph q
 
 
 --------------------------------------------------------------------------------
@@ -652,8 +689,14 @@ previewParagraph = H.p . mconcat . intersperse " " . map previewSentence
 
 
 --------------------------------------------------------------------------------
-previewOrderedList :: [Phrase] -> Html
-previewOrderedList = H.ol . mconcat . map (H.li . previewPhrase)
+previewOrderedList :: MarkdownOptions -> [Phrase] -> Html
+previewOrderedList mopts = style . H.ol . mconcat . map (H.li . previewPhrase)
+  where
+    style = case moOrderedLists mopts of
+        OrderedListOff     -> id
+        OrderedListAlpha   -> (! A.style "list-style-type: lower-alpha")
+        OrderedListDecimal -> (! A.style "list-style-type: decimal")
+        OrderedListRoman   -> (! A.style "list-style-type: lower-roman")
 
 
 --------------------------------------------------------------------------------

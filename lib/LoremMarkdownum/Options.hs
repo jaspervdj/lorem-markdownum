@@ -24,8 +24,9 @@ import           LoremMarkdownum.Print
 --------------------------------------------------------------------------------
 data Options = Options
     { oHeaders                    :: Maybe HeaderOption
+    , oOrderedLists               :: Maybe OrderedListOption
+    , oUnorderedLists             :: Maybe UnorderedListOption
     , oNoQuotes                   :: Bool
-    , oNoLists                    :: Bool
     , oEmphasis                   :: Maybe EmphasisOption
     , oStrong                     :: Maybe StrongOption
     , oNoInlineCode               :: Bool
@@ -36,6 +37,7 @@ data Options = Options
     , oCodeBlocks                 :: Maybe CodeBlockOption
     , oDeprecatedNoHeaders        :: Bool
     , oDeprecatedUnderlineHeaders :: Bool
+    , oDeprecatedNoLists          :: Bool
     , oDeprecatedNoInlineMarkup   :: Bool
     , oDeprecatedUnderscoreEm     :: Bool
     , oDeprecatedUnderscoreStrong :: Bool
@@ -69,6 +71,28 @@ instance Choice HeaderOption where
     choiceValue HeaderHash      = "hash"
     choiceValue HeaderUnderline = "underline"
     choiceValue HeaderOff       = "off"
+
+
+--------------------------------------------------------------------------------
+instance Choice OrderedListOption where
+    choiceLabel OrderedListDecimal = "1."
+    choiceLabel OrderedListAlpha   = "a."
+    choiceLabel OrderedListRoman   = "i."
+    choiceLabel OrderedListOff     = "off"
+    choiceValue OrderedListDecimal = "decimal"
+    choiceValue OrderedListAlpha   = "alpha"
+    choiceValue OrderedListRoman   = "roman"
+    choiceValue OrderedListOff     = "off"
+
+
+--------------------------------------------------------------------------------
+instance Choice UnorderedListOption where
+    choiceLabel UnorderedListDash     = "-"
+    choiceLabel UnorderedListAsterisk = "*"
+    choiceLabel UnorderedListOff      = "off"
+    choiceValue UnorderedListDash     = "dash"
+    choiceValue UnorderedListAsterisk = "asterisk"
+    choiceValue UnorderedListOff      = "off"
 
 
 --------------------------------------------------------------------------------
@@ -112,8 +136,9 @@ getChoiceOption key =
 parseOptions :: OptionsParser m => m Options
 parseOptions = Options
     <$> getChoiceOption                         "headers"
+    <*> getChoiceOption                         "ordered-lists"
+    <*> getChoiceOption                         "unordered-lists"
     <*> getFlag                                 "no-quotes"
-    <*> getFlag                                 "no-lists"
     <*> getChoiceOption                         "emphasis"
     <*> getChoiceOption                         "strong"
     <*> getFlag                                 "no-inline-code"
@@ -124,6 +149,7 @@ parseOptions = Options
     <*> getChoiceOption                         "code-blocks"
     <*> getFlag                                 "no-headers"
     <*> getFlag                                 "underline-headers"
+    <*> getFlag                                 "no-lists"
     <*> getFlag                                 "no-inline-markup"
     <*> getFlag                                 "underscore-em"
     <*> getFlag                                 "underscore-strong"
@@ -134,30 +160,37 @@ parseOptions = Options
 --------------------------------------------------------------------------------
 toMarkdownOptions :: Options -> MarkdownOptions
 toMarkdownOptions Options {..} = MarkdownOptions
-    { moHeaders          = case oHeaders of
+    { moHeaders = case oHeaders of
         Just headers                          -> headers
         Nothing | oDeprecatedNoHeaders        -> HeaderOff
         Nothing | oDeprecatedUnderlineHeaders -> HeaderUnderline
         Nothing                               -> HeaderHash
-    , moCodeBlocks       = case oCodeBlocks of
+    , moCodeBlocks = case oCodeBlocks of
         Just codeBlocks                       -> codeBlocks
         Nothing | oDeprecatedNoCode           -> CodeBlockOff
         Nothing | oDeprecatedFencedCodeBlocks -> CodeBlockFenced
         Nothing                               -> CodeBlockIndent
-    , moNoQuotes         = oNoQuotes
-    , moNoLists          = oNoLists
-    , moEmphasis         = case oEmphasis of
+    , moOrderedLists = case oOrderedLists of
+        Just orderedLists            -> orderedLists
+        Nothing | oDeprecatedNoLists -> OrderedListOff
+        Nothing                      -> moOrderedLists defaultMarkdownOptions
+    , moUnorderedLists = case oUnorderedLists of
+        Just orderedLists            -> orderedLists
+        Nothing | oDeprecatedNoLists -> UnorderedListOff
+        Nothing                      -> moUnorderedLists defaultMarkdownOptions
+    , moNoQuotes = oNoQuotes
+    , moEmphasis = case oEmphasis of
         Just emphasis           -> emphasis
         Nothing | oDeprecatedUnderscoreEm -> EmphasisUnderscore
         Nothing                           -> EmphasisAsterisk
-    , moStrong           = case oStrong of
+    , moStrong = case oStrong of
         Just strong                           -> strong
         Nothing | oDeprecatedUnderscoreStrong -> StrongUnderscore
         Nothing                               -> StrongAsterisk
-    , moNoInlineCode     = oNoInlineCode
-    , moReferenceLinks   = oReferenceLinks
-    , moNumBlocks        = oNumBlocks
-    , moSeed             = oSeed
+    , moNoInlineCode = oNoInlineCode
+    , moReferenceLinks = oReferenceLinks
+    , moNumBlocks = oNumBlocks
+    , moSeed = oSeed
     }
 
 
