@@ -10,7 +10,7 @@
     inputs.flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = inputs.nixpkgs.legacyPackages.${system};
-        haskell = pkgs.haskell.packages.ghc96;
+        haskell = pkgs.haskell.packages.ghc98;
         package = haskell.callCabal2nix "lorem-markdownum" ./. { };
         packageExes = pkgs.haskell.lib.justStaticExecutables package;
         share = pkgs.stdenv.mkDerivation {
