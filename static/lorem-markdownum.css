@@ -84,15 +84,8 @@ div.buttons input {
     margin: 3px;
 }
 
-div#results {
+output {
     color: black;
-}
-
-div#output {
-    margin: 0px 6px 0px 0px;
-    padding: none;
-    text-align: center;
-    width: 25px;
 }
 
 pre, code {

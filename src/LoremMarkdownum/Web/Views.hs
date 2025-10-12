@@ -29,7 +29,7 @@ index opts markdown = H.docTypeHtml $ do
         H.meta H.! A.charset "UTF-8"
         H.meta H.! A.name "viewport" H.! A.content "width=device-width, initial-scale=1"
         H.title "Lorem Markdownum"
-        H.link ! A.rel "stylesheet" ! A.type_ "text/css" ! A.href "lorem-markdownum.css?v=1"
+        H.link ! A.rel "stylesheet" ! A.type_ "text/css" ! A.href "lorem-markdownum.css?v=2"
         H.script ! A.type_ "text/javascript" ! A.src "lorem-markdownum.js?v=2"  $ ""
 
     H.body $ do
@@ -99,7 +99,7 @@ index opts markdown = H.docTypeHtml $ do
                         A.value "Generate some markdown!"
 
         H.hr
-        H.div ! A.id "results" $ do
+        H.output $ do
             H.div ! A.id "loading" ! A.style "display: none;" $ "⌛"
             H.div ! A.id "markdown-html" ! A.class_ "slider" $
                 markdownHtml opts markdown
