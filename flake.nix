@@ -30,7 +30,7 @@
             tag = "latest";
             contents = [ share ];
             config = {
-              Cmd = "${packageExes}/bin/lorem-markdownum-web";
+              Cmd = [ "${packageExes}/bin/lorem-markdownum-web" ];
               Env = [
                 "LOREM_MARKDOWNUM_DATA_DIR=/usr/share/lorem-markdownum/data"
                 "LOREM_MARKDOWNUM_STATIC_DIR=/usr/share/lorem-markdownum/static"
